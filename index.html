@@ -616,21 +616,19 @@ async function migrateSettings() {
   const existing = snap.exists() ? snap.data() : {};
   const updates = {};
 
-  // Only set fields that are missing — never overwrite existing values
   if(existing.cashInHand        === undefined) updates.cashInHand        = 145000;
   if(existing.currentMonth      === undefined) updates.currentMonth      = 'Mar 2026';
   if(existing.guardPayments     === undefined) updates.guardPayments     = {
-    'Mar 2026': { mid:{ paid:true, amount:125000, date:'15 Mar 2026' }, end:{ paid:false } }
+    'Mar 2026': { mid:{paid:true,amount:125000,date:'15 Mar 2026'}, end:{paid:false} }
   };
   if(!existing.devFundRaised || existing.devFundRaised < 100000) updates.devFundRaised = 175000;
   if(existing.devFundSpent === undefined || existing.devFundSpent < 87500) updates.devFundSpent = 87500;
-  if(existing.devFundLedger     === undefined) updates.devFundLedger     = [
-    {type:'in', description:'Development Reserve (Jan 2025)', amount:38000, date:'2025-01-31', balance:38000}
+  if(existing.devFundLedger === undefined) updates.devFundLedger = [
+    {type:'in', description:'Development Reserve',         amount:38000,  date:'2025-01-31', balance:38000},
+    {type:'in', description:'Guard tools raised',          amount:100000, date:'2025-06-01', balance:138000},
+    {type:'out',description:'Tools purchased (pangas+phone)',amount:87500, date:'2025-06-18', balance:50500},
+    {type:'in', description:'Barrier contributions',       amount:37000,  date:'2025-10-01', balance:87500}
   ];
-  // Barrier fund merged — no longer tracked separately
-  // (barrier fund merged into devFund)
-  // Tools merged into devFund
-  // (tools merged)
 
   if(Object.keys(updates).length > 0) {
     updates.seeded = true;
@@ -642,60 +640,52 @@ async function migrateSettings() {
     console.log('Settings migrated:', Object.keys(updates));
   }
 
-  // Migrate members — add devContributions field if missing
-  // Skip entirely if already done (check one member as proxy)
+  // Always seed guards if collection is empty
+  const guardsSnap = await getDocs(collection(db, 'guards'));
+  if(guardsSnap.empty) {
+    const gb = writeBatch(db);
+    SEED_GUARDS.filter(g=>g.status==='active').forEach(function(g) {
+      gb.set(doc(collection(db,'guards')), {name:g.name, salary:g.salary, status:'active'});
+    });
+    await gb.commit();
+    console.log('Guards seeded:', SEED_GUARDS.filter(g=>g.status==='active').length, 'guards');
+    return; // skip salary migration on fresh seed
+  }
+
+  // Migrate existing guards — update salaries and deactivate withdrawn
+  if(!existing.guardsMigrated) {
+    const gb2 = writeBatch(db);
+    let changed = false;
+    const withdrawn = ['Tembo','Christopher','Nowasi','Francis Tembo','Francis Manyetera'];
+    const names = guardsSnap.docs.map(d=>d.data().name);
+    guardsSnap.docs.forEach(d => {
+      const g = d.data();
+      if(withdrawn.some(w=>g.name&&g.name.toLowerCase().includes(w.toLowerCase())) && g.status==='active') {
+        gb2.update(doc(db,'guards',d.id),{status:'inactive',note:'Withdrawn Mar 2026'});
+        changed = true;
+      } else if(g.salary === 25000) {
+        gb2.update(doc(db,'guards',d.id),{salary:31250});
+        changed = true;
+      }
+    });
+    if(!names.includes('Peter Malikebu')) {
+      gb2.set(doc(collection(db,'guards')),{name:'Peter Malikebu',salary:31250,status:'active'});
+      changed = true;
+    }
+    if(changed) await gb2.commit();
+    try { await updateDoc(doc(db,'settings','main'),{guardsMigrated:true}); } catch(e){}
+  }
+
+  // Add devContributions to members if missing
   const membersForMigrate = await getDocs(collection(db, 'members'));
   const sampleMember = membersForMigrate.docs[0]?.data();
   if(sampleMember && sampleMember.devContributions === undefined) {
-    const memberBatch = writeBatch(db);
+    const mb = writeBatch(db);
     membersForMigrate.docs.forEach(d => {
-      memberBatch.update(doc(db,'members',d.id), {devContributions: {}});
+      mb.update(doc(db,'members',d.id), {devContributions: {}});
     });
-    await memberBatch.commit();
-    console.log('devContributions migrated for', membersForMigrate.docs.length, 'members');
-  }
-
-  // Migrate guards — seed if empty, update salaries if needed
-  if(!existing.guardsMigrated) {
-    const guardsSnap = await getDocs(collection(db, 'guards'));
-    // SEED GUARDS if collection is empty (happens after cleanup tool)
-    if(guardsSnap.empty) {
-      const seedBatch = writeBatch(db);
-      SEED_GUARDS.forEach(function(g) {
-        if(g.status === 'active') {
-          seedBatch.set(doc(collection(db,'guards')), {
-            name: g.name, salary: g.salary, status: 'active'
-          });
-        }
-      });
-      await seedBatch.commit();
-      console.log('Guards seeded from SEED_GUARDS');
-    }
-    if(!guardsSnap.empty) {
-      const guardBatch = writeBatch(db);
-      let guardUpdated = false;
-      const withdrawn = ['Tembo','Christopher','Nowasi'];
-      guardsSnap.docs.forEach(d => {
-        const g = d.data();
-        if(withdrawn.includes(g.name) && g.status==='active') {
-          guardBatch.update(doc(db,'guards',d.id),{status:'inactive',note:'Withdrawn Mar 2026'});
-          guardUpdated = true;
-        } else if(g.salary===25000) {
-          guardBatch.update(doc(db,'guards',d.id),{salary:31250});
-          guardUpdated = true;
-        }
-      });
-      const names = guardsSnap.docs.map(d=>d.data().name);
-      if(!names.includes('Peter Malikebu')) {
-        guardBatch.set(doc(collection(db,'guards')),{name:'Peter Malikebu',salary:31250,status:'active'});
-        guardUpdated = true;
-      }
-      if(guardUpdated) await guardBatch.commit();
-    }
-    // Mark guard migration done
-    try {
-      await updateDoc(doc(db,'settings','main'),{guardsMigrated:true});
-    } catch(e) {}
+    await mb.commit();
+    console.log('devContributions field added to members');
   }
 }
 
