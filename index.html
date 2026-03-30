@@ -655,10 +655,22 @@ async function migrateSettings() {
     console.log('devContributions migrated for', membersForMigrate.docs.length, 'members');
   }
 
-  // Migrate guards — only runs if salary migration needed
-  // Skip entirely if existing.guardsMigrated flag is set
+  // Migrate guards — seed if empty, update salaries if needed
   if(!existing.guardsMigrated) {
     const guardsSnap = await getDocs(collection(db, 'guards'));
+    // SEED GUARDS if collection is empty (happens after cleanup tool)
+    if(guardsSnap.empty) {
+      const seedBatch = writeBatch(db);
+      SEED_GUARDS.forEach(function(g) {
+        if(g.status === 'active') {
+          seedBatch.set(doc(collection(db,'guards')), {
+            name: g.name, salary: g.salary, status: 'active'
+          });
+        }
+      });
+      await seedBatch.commit();
+      console.log('Guards seeded from SEED_GUARDS');
+    }
     if(!guardsSnap.empty) {
       const guardBatch = writeBatch(db);
       let guardUpdated = false;
