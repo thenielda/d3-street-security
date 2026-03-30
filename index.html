@@ -1365,7 +1365,7 @@ window.openWhatsApp = function() {
   text += `⚠ Pay by 15th · NBM A/C: 1104047\nRef: YourSurname+D3Security`;
 
   window._waText = text;
-  openSheet('WhatsApp Update', ' <div style="font-size:11px;color:var(--grey3);margin-bottom:8px"> Preview for <b>') + (selectedMonth) + '</b> — tap Copy then paste into WhatsApp </div> <div class="wa-preview">' + (text) + '</div> <button class="btn btn-green" style="margin-top:10px" onclick="copyCurrentWA()"> 📋 Copy to Clipboard </button> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
+  openSheet('WhatsApp Update', ' <div style="font-size:11px;color:var(--grey3);margin-bottom:8px"> Preview for <b>'+ (selectedMonth) + '</b> — tap Copy then paste into WhatsApp </div> <div class="wa-preview">' + (text) + '</div> <button class="btn btn-green" style="margin-top:10px" onclick="copyCurrentWA()"> 📋 Copy to Clipboard </button> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
 };
 
 window.copyCurrentWA = function() { copyWA(window._waText||""); };
@@ -1483,6 +1483,8 @@ window.saveNewGuard = async function() {
 //  DEVELOPMENT FUND
 // ══════════════════════════════════════════════════════════════
 // Guard fortnightly payment processing
+window._gpPeriod=null; window._gpPay=0;
+window.confirmCurrentGuardPay = function(){ if(window._gpPeriod) confirmGuardPay(window._gpPeriod, window._gpPay); };
 window.processGuardPay = async function(period) {
   const pay = totalGuardPayroll();
   const cash = computeCashInHand();
@@ -1495,12 +1497,13 @@ window.processGuardPay = async function(period) {
   }
   const availCash = period === 'end' && moPay.mid?.paid ? cash : cash;
   if(availCash < pay){
-    openSheet('⚠ Insufficient Funds', ' <div class="alert-error">🚫 Cannot process payment</div> <div style="font-size:14px;line-height:1.6;margin-bottom:14px"> <b>Required:</b> ') + (fmt(pay)) + '<br> <b>Cash in hand:</b> ' + (fmt(availCash)) + '<br> <b>Shortfall:</b> ' + (fmt(pay - availCash)) + ' </div> <div class="alert-warn">Collect outstanding contributions before processing this payment.</div> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
+    openSheet('⚠ Insufficient Funds', ' <div class="alert-error">🚫 Cannot process payment</div> <div style="font-size:14px;line-height:1.6;margin-bottom:14px"> <b>Required:</b> '+ (fmt(pay)) + '<br> <b>Cash in hand:</b> ' + (fmt(availCash)) + '<br> <b>Shortfall:</b> ' + (fmt(pay - availCash)) + ' </div> <div class="alert-warn">Collect outstanding contributions before processing this payment.</div> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
     return;
   }
 
   const label = period === 'mid' ? '15th' : 'End-of-Month';
-  openSheet(`Confirm ${label} Payment`, ' <div style="font-size:14px;line-height:1.8;margin-bottom:14px"> <b>Month:</b> ') + (selectedMonth) + '<br> <b>Payment:</b> ' + (label) + '<br> <b>Amount:</b> ' + (fmt(pay)) + '<br> <b>Cash in hand after:</b> ' + (fmt(availCash - pay)) + ' </div> <div class="alert-warn">This will deduct ' + (fmt(pay)) + ' from cash in hand and cannot be undone.</div> <button class="btn btn-green" onclick="confirmGuardPay('' + (period) + '',' + (pay) + ')">✅ Confirm Payment</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  window._gpPeriod=period; window._gpPay=pay;
+  openSheet('Confirm '+label+' Payment', ' <div style="font-size:14px;line-height:1.8;margin-bottom:14px"> <b>Month:</b> '+ (selectedMonth) + '<br> <b>Payment:</b> ' + (label) + '<br> <b>Amount:</b> ' + (fmt(pay)) + '<br> <b>Cash in hand after:</b> ' + (fmt(availCash - pay)) + ' </div> <div class="alert-warn">This will deduct ' + (fmt(pay)) + ' from cash in hand and cannot be undone.</div> <button class="btn btn-green" onclick="confirmCurrentGuardPay()">✅ Confirm Payment</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.confirmGuardPay = async function(period, amount) {
@@ -1540,7 +1543,7 @@ window.saveDevFundIn = async function() {
 window.openDevFundOut = function() {
   const balance = (settings.devFundRaised||0) - (settings.devFundSpent||0);
   window._devBalance = balance;
-  openSheet('💸 Development Fund – Expenditure', ' ') + (balance <= 0 ? '<div class="alert-error">🚫 No funds available in Dev Fund</div>' : '') + ' <div class="alert-warn">Available balance: <b>' + (fmt(balance)) + '</b></div> <div class="form-group"> <label class="form-label">What was purchased / used for?</label> <input class="form-input" type="text" id="doDesc" placeholder="e.g. Borehole survey, Nov 2025"/> </div> <div class="form-group"> <label class="form-label">Amount Spent (MWK)</label> <input class="form-input" type="number" id="doAmt" placeholder="0" oninput="checkDevFundLimit(this.value,' + (balance) + ')"/> </div> <div id="devFundErr" style="display:none" class="alert-error">🚫 Amount exceeds available balance</div> <button class="btn btn-danger" id="devFundSaveBtn" onclick="saveCurrentDevFundOut()">✅ Record Expenditure</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  openSheet('💸 Development Fund – Expenditure', ' '+ (balance <= 0 ? '<div class="alert-error">🚫 No funds available in Dev Fund</div>' : '') + ' <div class="alert-warn">Available balance: <b>' + (fmt(balance)) + '</b></div> <div class="form-group"> <label class="form-label">What was purchased / used for?</label> <input class="form-input" type="text" id="doDesc" placeholder="e.g. Borehole survey, Nov 2025"/> </div> <div class="form-group"> <label class="form-label">Amount Spent (MWK)</label> <input class="form-input" type="number" id="doAmt" placeholder="0" oninput="checkDevFundLimit(this.value,' + (balance) + ')"/> </div> <div id="devFundErr" style="display:none" class="alert-error">🚫 Amount exceeds available balance</div> <button class="btn btn-danger" id="devFundSaveBtn" onclick="saveCurrentDevFundOut()">✅ Record Expenditure</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.checkDevFundLimit = function(val, balance) {
@@ -1574,7 +1577,7 @@ window.saveDevFundOut = async function(balance) {
 };
 
 window.openUpdateFunds = function() {
-  openSheet('Update Fund Balances', ' <div class="form-group"> <label class="form-label">Dev Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufDevSpent" value="') + (settings.devFundSpent||0) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Raised (MWK)</label> <input class="form-input" type="number" id="ufBarRaised" value="' + (settings.barrierFundRaised||75000) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufBarSpent" value="' + (settings.barrierFundSpent||0) + '"/> </div> <button class="btn btn-primary" onclick="saveFundBalances()">✅ Update</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  openSheet('Update Fund Balances', ' <div class="form-group"> <label class="form-label">Dev Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufDevSpent" value="'+ (settings.devFundSpent||0) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Raised (MWK)</label> <input class="form-input" type="number" id="ufBarRaised" value="' + (settings.barrierFundRaised||75000) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufBarSpent" value="' + (settings.barrierFundSpent||0) + '"/> </div> <button class="btn btn-primary" onclick="saveFundBalances()">✅ Update</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.saveFundBalances = async function() {
