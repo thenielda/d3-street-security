@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>D3 – Database Cleanup</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:700px;margin:20px auto;padding:16px;background:#f0f4f8}
+h2{color:#1F3864}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.btn{padding:12px 20px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin:4px;font-family:inherit}
+.btn-red{background:#C00000;color:#fff}
+.btn-blue{background:#1F3864;color:#fff}
+.btn-green{background:#375623;color:#fff}
+.btn-grey{background:#e0e0e0;color:#333}
+.log{background:#1a1a1a;color:#00ff88;padding:14px;border-radius:8px;font-family:monospace;
+  font-size:12px;max-height:400px;overflow-y:auto;white-space:pre-wrap;margin-top:10px}
+.warn{background:#FFF2CC;border:2px solid #BF8F00;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px}
+.err{background:#FFCCCC;border:2px solid #C00000;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px}
+.ok{background:#E2EFDA;border:2px solid #375623;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:#1F3864;color:#fff;padding:6px 8px;text-align:left}
+td{padding:5px 8px;border-bottom:1px solid #e0e0e0}
+tr.dup{background:#FFCCCC}
+tr.keep{background:#E2EFDA}
+</style>
+</head>
+<body>
+
+<h2>🛠 D3 Street – Database Cleanup Tool</h2>
+<div class="warn">⚠ <b>Admin only.</b> This tool removes duplicate members from Firebase. Run Step 1 first to preview, then Step 2 to clean.</div>
+
+<div class="card">
+  <b>Step 1 — Scan for duplicates</b><br><br>
+  <button class="btn btn-blue" onclick="scanDuplicates()">🔍 Scan Members</button>
+  <div id="scanResult"></div>
+</div>
+
+<div class="card">
+  <b>Step 2 — Remove duplicates</b><br>
+  <small>Keeps the first occurrence of each name, deletes all extras. Contributions are merged before deletion.</small><br><br>
+  <button class="btn btn-red" id="cleanBtn" onclick="cleanDuplicates()" disabled>🗑 Remove Duplicates</button>
+  <div id="cleanResult"></div>
+</div>
+
+<div class="card">
+  <b>Step 3 — Reset settings to correct values</b><br>
+  <small>Sets cashInHand=145,000 · devFundRaised=175,000 · devFundSpent=87,500 · barrierFund merged in</small><br><br>
+  <button class="btn btn-green" onclick="resetSettings()">✅ Fix Settings</button>
+  <div id="settingsResult"></div>
+</div>
+
+<div class="card">
+  <b>Step 4 — Fix Guard Roster</b><br>
+  <small>Deactivates Tembo/Christopher/Nowasi, sets salaries to 31,250, adds Peter Malikebu if missing</small><br><br>
+  <button class="btn btn-green" onclick="fixGuards()">✅ Fix Guards</button>
+  <div id="guardsResult"></div>
+</div>
+
+<div id="log" class="log" style="display:none"></div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs, doc, deleteDoc,
+         updateDoc, setDoc, writeBatch, getDoc
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyBvjqcAvaiaA9tQ3uisnaBCXTRI5DalSMM",
+  authDomain:        "d3-street-security.firebaseapp.com",
+  projectId:         "d3-street-security",
+  storageBucket:     "d3-street-security.firebasestorage.app",
+  messagingSenderId: "576698887960",
+  appId:             "1:576698887960:web:c0461f82d7a36bbd28786d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+let allMembers = [];
+let duplicatesToDelete = [];
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.style.display = 'block';
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── STEP 1: SCAN ─────────────────────────────────────────────────────────────
+window.scanDuplicates = async function() {
+  const el = document.getElementById('scanResult');
+  el.innerHTML = '<br>Scanning…';
+  log('=== SCANNING MEMBERS ===');
+
+  const snap = await getDocs(collection(db, 'members'));
+  allMembers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  log(`Total documents in Firestore: ${allMembers.length}`);
+
+  // Group by name (case-insensitive, trimmed)
+  const groups = {};
+  allMembers.forEach(m => {
+    const key = (m.name||'').trim().toLowerCase();
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  });
+
+  const dupeNames = Object.entries(groups).filter(([,arr])=>arr.length>1);
+  const uniqueNames = Object.entries(groups).filter(([,arr])=>arr.length===1);
+
+  log(`Unique names: ${uniqueNames.length}`);
+  log(`Duplicated names: ${dupeNames.length}`);
+  dupeNames.forEach(([name, arr]) => log(`  • "${arr[0].name}" appears ${arr.length}×`));
+
+  // Build table
+  let html = `<br><div class="${dupeNames.length>0?'err':'ok'}">`;
+  html += dupeNames.length>0
+    ? `⚠ Found <b>${dupeNames.length} duplicate names</b> across <b>${allMembers.length} total documents</b>. Expected 23.`
+    : `✅ No duplicates found. ${allMembers.length} members.`;
+  html += '</div>';
+
+  if(dupeNames.length > 0) {
+    html += '<table><tr><th>Name</th><th>Count</th><th>Action</th></tr>';
+    dupeNames.forEach(([,arr]) => {
+      arr.forEach((m,i) => {
+        const contribs = Object.keys(m.contributions||{}).length;
+        html += `<tr class="${i===0?'keep':'dup'}">
+          <td>${m.name}</td>
+          <td>${i===0?'✅ KEEP (first)':'🗑 DELETE'}</td>
+          <td>${contribs} months recorded</td>
+        </tr>`;
+      });
+    });
+    html += '</table>';
+
+    // Prepare deletion list
+    duplicatesToDelete = [];
+    dupeNames.forEach(([,arr]) => {
+      // Merge all contributions into the first (keeper)
+      const keeper = arr[0];
+      const mergedContribs = {};
+      arr.forEach(m => {
+        Object.entries(m.contributions||{}).forEach(([month, val]) => {
+          if(!mergedContribs[month] || val > mergedContribs[month])
+            mergedContribs[month] = val;
+        });
+      });
+      keeper._mergedContribs = mergedContribs;
+      // Mark rest for deletion
+      arr.slice(1).forEach(m => duplicatesToDelete.push(m.id));
+    });
+
+    log(`\nDuplicates to delete: ${duplicatesToDelete.length} documents`);
+    document.getElementById('cleanBtn').disabled = false;
+  }
+
+  document.getElementById('scanResult').innerHTML = html;
+};
+
+// ── STEP 2: CLEAN ────────────────────────────────────────────────────────────
+window.cleanDuplicates = async function() {
+  if(!confirm(`Delete ${duplicatesToDelete.length} duplicate documents? This cannot be undone.`)) return;
+  const el = document.getElementById('cleanResult');
+  el.innerHTML = '<br>Cleaning…';
+  log('\n=== CLEANING DUPLICATES ===');
+
+  // First update keepers with merged contributions
+  const groups = {};
+  allMembers.forEach(m => {
+    const key = (m.name||'').trim().toLowerCase();
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(m);
+  });
+
+  const batch = writeBatch(db);
+  let merged = 0;
+
+  for(const [,arr] of Object.entries(groups)) {
+    if(arr.length <= 1) continue;
+    const keeper = arr[0];
+    // Merge contributions from all duplicates
+    const mergedContribs = {};
+    arr.forEach(m => {
+      Object.entries(m.contributions||{}).forEach(([month, val]) => {
+        if(!mergedContribs[month] || val > mergedContribs[month])
+          mergedContribs[month] = val;
+      });
+    });
+    batch.update(doc(db, 'members', keeper.id), { contributions: mergedContribs });
+    log(`Merged contributions for ${keeper.name} (${Object.keys(mergedContribs).length} months)`);
+    merged++;
+  }
+
+  // Delete duplicates
+  duplicatesToDelete.forEach(id => {
+    batch.delete(doc(db, 'members', id));
+    log(`Deleting doc ID: ${id}`);
+  });
+
+  await batch.commit();
+  log(`\n✅ Done. Merged ${merged} members, deleted ${duplicatesToDelete.length} duplicates.`);
+  el.innerHTML = `<br><div class="ok">✅ Cleaned! Deleted ${duplicatesToDelete.length} duplicates, merged contributions. Refresh the app to confirm.</div>`;
+  document.getElementById('cleanBtn').disabled = true;
+};
+
+// ── STEP 3: SETTINGS ─────────────────────────────────────────────────────────
+window.resetSettings = async function() {
+  log('\n=== FIXING SETTINGS ===');
+  const snap = await getDoc(doc(db, 'settings', 'main'));
+  const existing = snap.exists() ? snap.data() : {};
+
+  const updates = {
+    cashInHand:      145000,
+    currentMonth:    'Mar 2026',
+    devFundRaised:   175000,
+    devFundSpent:    87500,
+    devFundLedger: [
+      {type:'in',  description:'Development Reserve – initial allocation',        amount:38000,  date:'2025-01-31', balance:38000},
+      {type:'in',  description:'Guard tools fund – raised (cumulative)',           amount:100000, date:'2025-06-01', balance:138000},
+      {type:'out', description:'Guard tools purchased (pangas × 5, mobile phone)',amount:87500,  date:'2025-06-18', balance:50500},
+      {type:'in',  description:'Barrier construction contributions (cumulative)',  amount:37000,  date:'2025-10-01', balance:87500}
+    ],
+    guardPayments: existing.guardPayments || {
+      'Mar 2026': { mid:{ paid:true, amount:125000, date:'15 Mar 2026' }, end:{ paid:false } }
+    },
+  };
+
+  // Remove old separate barrier/tools fields
+  const { barrierFundRaised, barrierFundSpent, toolsFundRaised, toolsFundSpent, ...rest } = existing;
+
+  await setDoc(doc(db, 'settings', 'main'), { ...rest, ...updates });
+  log('✅ Settings updated:');
+  Object.entries(updates).forEach(([k,v]) => {
+    if(typeof v !== 'object') log(`  ${k}: ${v}`);
+  });
+  document.getElementById('settingsResult').innerHTML =
+    '<br><div class="ok">✅ Settings corrected. Cash in hand: MWK 145,000 · Dev Fund balance: MWK 87,500</div>';
+};
+
+// ── STEP 4: GUARDS ───────────────────────────────────────────────────────────
+window.fixGuards = async function() {
+  log('\n=== FIXING GUARDS ===');
+  const snap = await getDocs(collection(db, 'guards'));
+  const batch = writeBatch(db);
+  const names = snap.docs.map(d=>d.data().name);
+  let changes = 0;
+
+  const withdrawn = ['Tembo', 'Christopher', 'Nowasi',
+                     'Francis Tembo', 'Francis Manyetera'];
+
+  snap.docs.forEach(d => {
+    const g = d.data();
+    const updates = {};
+    if(withdrawn.some(w => g.name?.toLowerCase().includes(w.toLowerCase())) && g.status==='active') {
+      updates.status = 'inactive';
+      updates.note   = 'Withdrawn Mar 2026';
+      log(`Deactivating: ${g.name}`);
+      changes++;
+    }
+    if(g.salary !== 31250 && g.status === 'active') {
+      updates.salary = 31250;
+      log(`Updating salary: ${g.name} → MWK 31,250`);
+      changes++;
+    }
+    if(Object.keys(updates).length > 0)
+      batch.update(doc(db,'guards',d.id), updates);
+  });
+
+  if(!names.includes('Peter Malikebu')) {
+    batch.set(doc(collection(db,'guards')),
+      {name:'Peter Malikebu', salary:31250, status:'active'});
+    log('Adding Peter Malikebu');
+    changes++;
+  }
+
+  if(changes > 0) {
+    await batch.commit();
+    log(`✅ ${changes} guard updates applied`);
+    document.getElementById('guardsResult').innerHTML =
+      `<br><div class="ok">✅ Guards updated. ${changes} changes applied.</div>`;
+  } else {
+    log('No guard changes needed');
+    document.getElementById('guardsResult').innerHTML =
+      '<br><div class="ok">✅ Guards already correct — no changes needed.</div>';
+  }
+};
+</script>
+</body>
+</html>

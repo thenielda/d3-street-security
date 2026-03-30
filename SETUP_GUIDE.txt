@@ -1,0 +1,159 @@
+╔══════════════════════════════════════════════════════════════╗
+║         D3 STREET SECURITY APP – SETUP GUIDE                ║
+║         Firebase + Netlify · ~20 minutes total              ║
+╚══════════════════════════════════════════════════════════════╝
+
+You need: your Gmail account and a laptop/PC browser.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1: CREATE YOUR FIREBASE PROJECT (5 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to: https://console.firebase.google.com
+2. Click "Create a project"
+3. Name it: d3-street-security  (or anything you like)
+4. Disable Google Analytics (not needed) → click "Create project"
+5. Wait ~30 seconds for it to provision
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2: ENABLE FIRESTORE DATABASE (3 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. In your Firebase project, click "Firestore Database" in the left menu
+2. Click "Create database"
+3. Choose "Start in TEST MODE" (we'll use our own rules)
+4. Select a location: choose "eur3" or "us-central1" (either is fine)
+5. Click "Done"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3: COPY YOUR APP CONFIG (2 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Click the gear icon ⚙ → "Project Settings"
+2. Scroll down to "Your apps" section
+3. Click the "</>" (Web) icon to add a web app
+4. Give it a nickname: "D3 App"
+5. Do NOT check "Firebase Hosting" → click "Register app"
+6. You will see a config block that looks like this:
+
+   const firebaseConfig = {
+     apiKey: "AIzaSy...",
+     authDomain: "d3-street-security.firebaseapp.com",
+     projectId: "d3-street-security",
+     storageBucket: "d3-street-security.appspot.com",
+     messagingSenderId: "123456789",
+     appId: "1:123456789:web:abcdef..."
+   };
+
+7. Copy ALL of those values (keep this page open)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4: PASTE CONFIG INTO THE APP (2 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open the file: index.html  (with Notepad or any text editor)
+2. Find this section near the top of the <script> block:
+
+   const firebaseConfig = {
+     apiKey:            "PASTE_YOUR_API_KEY_HERE",
+     authDomain:        "PASTE_YOUR_AUTH_DOMAIN_HERE",
+     projectId:         "PASTE_YOUR_PROJECT_ID_HERE",
+     storageBucket:     "PASTE_YOUR_STORAGE_BUCKET_HERE",
+     messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
+     appId:             "PASTE_YOUR_APP_ID_HERE"
+   };
+
+3. Replace each "PASTE_YOUR_..." with the actual values from Firebase
+4. Also change the admin password (just below the config):
+
+   const ADMIN_PASSWORD = 'd3admin2025';
+   
+   → Change 'd3admin2025' to something only you know.
+
+5. Save the file.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5: APPLY FIRESTORE SECURITY RULES (2 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. In Firebase console → Firestore Database → "Rules" tab
+2. Delete the existing rules and paste the contents of firestore.rules
+3. Click "Publish"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 6: DEPLOY TO NETLIFY (5 min)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to: https://netlify.com
+2. Sign up with your Gmail (free, no credit card)
+3. Click "Add new site" → "Deploy manually"
+4. Drag the entire "d3-firebase" folder into the upload area
+5. Netlify gives you a URL like:
+      https://d3-security-abc123.netlify.app
+
+6. You can rename it to something nicer:
+   Site settings → Change site name → e.g. "d3-street"
+   → URL becomes: https://d3-street.netlify.app
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 7: SHARE WITH NEIGHBOURS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Paste this message into the D3 WhatsApp group:
+
+---
+📱 *D3 STREET SECURITY APP*
+Our contribution tracker is now live!
+
+🔗 https://d3-street.netlify.app
+
+Open the link in Chrome on your Android phone.
+Tap "Add to Home Screen" when prompted → it installs like an app.
+
+✅ See who has paid each month
+📅 Full payment history
+🔴 Live updates – no refresh needed
+---
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHAT HAPPENS ON FIRST LOAD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The first time any device opens the app, it automatically loads all
+23 members and 15 months of historical data from the WhatsApp records
+into Firestore. This takes about 3 seconds and only happens once.
+After that, all data is live in the cloud.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ADMIN WORKFLOW (your daily use)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open the app → tap ⚙ Admin → enter password
+2. Tap the Members tab
+3. Tap any member's name → enter amount → Save
+   → Every other device updates within 1-2 seconds automatically
+4. Use "Generate WhatsApp Update" to copy the summary message
+5. Paste into the D3 group
+
+That's it. No spreadsheet, no manual formatting.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FUTURE UPGRADES (when you're ready)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• Add a new month: 2 lines of code in the MONTHS array
+• Stronger admin auth: Firebase Authentication (Google login)
+• Export to PDF: one-click monthly statement
+• SMS reminders: Twilio integration (small cost)
+• Custom domain: e.g. d3security.com (~$12/year)
+
+All of these are available anytime — just ask.

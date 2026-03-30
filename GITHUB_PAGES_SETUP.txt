@@ -1,0 +1,88 @@
+D3 STREET SECURITY — GITHUB PAGES DEPLOYMENT
+============================================
+Free forever. No credits. No limits.
+
+WHAT YOU NEED
+─────────────
+• A GitHub account (free) — github.com
+• Your Gmail works to sign up
+
+YOUR URL WILL BE
+─────────────────
+https://YOUR-USERNAME.github.io/d3-street-security/
+
+Example: if your GitHub username is "dnkosi"
+→ https://dnkosi.github.io/d3-street-security/
+
+
+STEP 1 — Create GitHub account (2 min)
+───────────────────────────────────────
+1. Go to https://github.com
+2. Click "Sign up"
+3. Use your Gmail, choose a username (e.g. dnkosi or danielnkosi)
+4. Verify your email
+
+
+STEP 2 — Create a repository (2 min)
+──────────────────────────────────────
+1. Click the "+" icon top-right → "New repository"
+2. Repository name: d3-street-security
+3. Set to PUBLIC (required for free GitHub Pages)
+4. Check "Add a README file"
+5. Click "Create repository"
+
+
+STEP 3 — Upload the app files (3 min)
+───────────────────────────────────────
+1. Inside your new repository, click "Add file" → "Upload files"
+2. Extract the D3_App_v12_DEPLOY.zip on your laptop
+3. Open the d3-v3 folder — you will see:
+      index.html
+      manifest.json
+      sw.js
+      firestore.rules
+      cleanup.html
+      SETUP_GUIDE.txt
+4. Select ALL these files (Ctrl+A) and drag them into the GitHub upload box
+   ⚠ Upload the FILES directly — not the d3-v3 folder itself
+5. Scroll down → click "Commit changes"
+
+
+STEP 4 — Enable GitHub Pages (2 min)
+──────────────────────────────────────
+1. In your repository, click "Settings" tab
+2. Click "Pages" in the left sidebar
+3. Under "Source" → select "Deploy from a branch"
+4. Branch: "main" · Folder: "/ (root)"
+5. Click "Save"
+6. Wait 2-3 minutes — GitHub will show you your live URL
+
+
+STEP 5 — Test it
+──────────────────
+Open the URL on your phone in Chrome.
+You should see the D3 Security app load.
+
+
+UPDATING IN FUTURE (when we have changes)
+──────────────────────────────────────────
+1. Go to your GitHub repository
+2. Click the file you want to update (e.g. index.html)
+3. Click the pencil icon ✏ to edit, OR
+4. Click "Add file" → "Upload files" to replace it
+5. Commit — site updates in about 1 minute
+
+
+DIFFERENCE FROM NETLIFY
+─────────────────────────
+• GitHub Pages: Free forever, no credits, slightly slower first load
+• Netlify:      Slicker UI, faster, but free tier has monthly limits
+• For D3 Street purposes: GitHub Pages is perfectly fine
+• When you start charging other streets: move back to Netlify paid ($19/month)
+  and the app works identically — just a different URL
+
+NOTE ON CLEANUP TOOL
+──────────────────────
+After going live on GitHub Pages, open the cleanup tool:
+https://YOUR-USERNAME.github.io/d3-street-security/cleanup.html
+Run all 4 steps to fix the database.
