@@ -1274,6 +1274,107 @@ window.markMoved = async function(id, name) {
   toast(name+' marked as moved away');
 };
 
+
+// ══════════════════════════════════════════════════════════════
+//  BOTTOM SHEET
+// ══════════════════════════════════════════════════════════════
+function openSheet(title, html) {
+  document.getElementById('sheetTitle').textContent = title;
+  document.getElementById('sheetBody').innerHTML = html;
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+window.closeSheet = function(e) {
+  if(e && e.target !== document.getElementById('sheet-overlay')) return;
+  document.getElementById('sheet-overlay').classList.remove('open');
+};
+window.closeAdminSheet = function() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+};
+
+// ══════════════════════════════════════════════════════════════
+//  ADMIN AUTH
+// ══════════════════════════════════════════════════════════════
+window.requestAdmin = function() {
+  if(isAdmin){ openAdminMenu(); return; }
+  document.getElementById('login-overlay').classList.add('open');
+  document.getElementById('loginPwd').value='';
+  document.getElementById('loginErr').textContent='';
+  setTimeout(function(){document.getElementById('loginPwd').focus();},300);
+};
+
+window.doLogin = function() {
+  var pwd = document.getElementById('loginPwd').value;
+  if(pwd===ADMIN_PASSWORD){
+    isAdmin=true;
+    document.getElementById('login-overlay').classList.remove('open');
+    document.getElementById('adminBtn').textContent='Admin ON';
+    document.getElementById('adminBtn').style.background='rgba(144,238,144,.3)';
+    toast('Admin access granted');
+    renderCurrentPage();
+    scheduleNotifications();
+  } else {
+    document.getElementById('loginErr').textContent='Incorrect password.';
+    document.getElementById('loginPwd').value='';
+  }
+};
+
+window.closeLogin = function() {
+  document.getElementById('login-overlay').classList.remove('open');
+};
+
+document.getElementById('loginPwd').addEventListener('keydown', function(e){
+  if(e.key==='Enter') doLogin();
+});
+
+function openAdminMenu() {
+  var html = '<button class="btn btn-primary" onclick="adminAddMember()">Add New Member</button>'
+    + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
+    + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Admin Menu', html);
+}
+
+window.doLogout = function() {
+  isAdmin=false;
+  document.getElementById('adminBtn').textContent='Admin';
+  document.getElementById('adminBtn').style.background='rgba(255,255,255,.15)';
+  closeAdminSheet();
+  toast('Logged out');
+  renderCurrentPage();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════════════════
+function renderHistory() {
+  var el = document.getElementById('historyBody');
+  el.innerHTML = '';
+  var months = MONTHS.slice().reverse();
+  months.forEach(function(mo) {
+    var paid = members.filter(function(m){ return (m.contributions && m.contributions[mo.key]||0) > 0; });
+    if(!paid.length) return;
+    var total = paid.reduce(function(s,m){ return s+(m.contributions[mo.key]||0); }, 0);
+    var block = document.createElement('div');
+    block.className = 'hist-month';
+    var head = document.createElement('div');
+    head.className = 'hist-head';
+    head.innerHTML = '<span>'+mo.key+'</span><span style="color:var(--green);font-weight:800">'+fmt(total)+'</span>';
+    block.appendChild(head);
+    paid.forEach(function(m) {
+      var r = document.createElement('div');
+      r.className = 'hist-row';
+      r.innerHTML = '<span>'+m.name+'</span><span style="color:var(--green);font-weight:600">'+fmt(m.contributions[mo.key])+'</span>';
+      block.appendChild(r);
+    });
+    el.appendChild(block);
+  });
+  if(!el.children.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--grey3);padding:20px;font-size:13px">No history yet</div>';
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 //  ADD MEMBER
 // ══════════════════════════════════════════════════════════════
