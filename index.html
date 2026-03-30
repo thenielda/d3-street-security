@@ -1005,7 +1005,10 @@ window.openDevContrib = function openDevContrib() {
   openSheet('Dev Fund Contribution', html);
 };
 
+window._currentDevMemberId = null;
+window.saveCurrentDevContrib = function() { saveDevContribForMember(window._currentDevMemberId); };
 window.openDevContribSheet = function openDevContribSheet(member) {
+  window._currentDevMemberId = member.id;
   var existing = Object.entries(member.devContributions||{});
   var total = existing.reduce(function(s,kv){return s+(kv[1]||0);},0);
   var breakdown = existing.length > 0
@@ -1026,7 +1029,7 @@ window.openDevContribSheet = function openDevContribSheet(member) {
     + ' placeholder="e.g. Barrier Construction"/></div>'
     + '<div class="form-group"><label class="form-label">Amount (MWK)</label>'
     + '<input class="form-input" type="number" id="dceAmt" value="20000"/></div>'
-    + '<button class="btn btn-primary" onclick="saveDevContribForMember(''+member.id+'')">Save</button>'
+    + '<button class="btn btn-primary" onclick="saveDevContribForMember(\'' + member.id + '\')">Save</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Dev Fund: '+member.name, html);
 };
@@ -1332,31 +1335,46 @@ window.closeAdminSheet = function() {
 //  PAYMENT SHEET
 // ══════════════════════════════════════════════════════════════
 function openPaySheet(member) {
-  var cur = member.contributions && member.contributions[selectedMonth] ? member.contributions[selectedMonth] : '';
+  // Use global to avoid quote-escaping issues in onclick attributes
+  window._editMember = member;
+  var cur = (member.contributions && member.contributions[selectedMonth])
+    ? member.contributions[selectedMonth] : '';
   var std = getStd(selectedMonth);
   var monthOpts = MONTHS.map(function(m){
     return '<option value="'+m.key+'"'+(m.key===selectedMonth?' selected':'')+'>'+m.key+'</option>';
   }).join('');
-  var html = '<div class="form-group">'
-    + '<label class="form-label">Month</label>'
+  var html = '<div class="form-group"><label class="form-label">Month</label>'
     + '<select class="form-select" id="payMonth">'+monthOpts+'</select></div>'
     + '<div class="form-group"><label class="form-label">Amount Paid (MWK)</label>'
     + '<input class="form-input" type="number" id="payAmt" value="'+cur+'" placeholder="e.g. 15000"/>'
     + '<div class="quick-btns">'
     + '<button class="quick-btn" style="background:var(--green2);color:var(--green)"'
-    + ' onclick="document.getElementById('payAmt').value=''+std+''">'+Math.round(std/1000)+'K</button>'
+    + ' onclick="setPayAmt('+std+')">'+(std/1000)+'K</button>'
     + '<button class="quick-btn" style="background:var(--purple2);color:var(--purple)"'
-    + ' onclick="document.getElementById('payAmt').value=''+(std*2)+''">'+Math.round(std*2/1000)+'K (2mo)</button>'
+    + ' onclick="setPayAmt('+(std*2)+')">'+(std*2/1000)+'K (2mo)</button>'
     + '<button class="quick-btn" style="background:var(--gold2);color:var(--gold)"'
-    + ' onclick="document.getElementById('payAmt').value=''+(std*3)+''">'+Math.round(std*3/1000)+'K (3mo)</button>'
+    + ' onclick="setPayAmt('+(std*3)+')">'+(std*3/1000)+'K (3mo)</button>'
     + '</div></div>'
-    + '<button class="btn btn-primary" onclick="savePay(''+member.id+'',''+member.name.replace(/'/g,"\\'")+'')">Save Payment</button>'
-    + '<button class="btn btn-grey" onclick="markUnpaid(''+member.id+'',''+member.name.replace(/'/g,"\\'")+'')">Mark Not Paid</button>'
+    + '<button class="btn btn-primary" onclick="saveCurrentPay()">Save Payment</button>'
+    + '<button class="btn btn-grey" onclick="markCurrentUnpaid()">Mark Not Paid</button>'
     + '<button class="btn" style="background:var(--orange2);color:var(--orange);font-weight:700"'
-    + ' onclick="markMoved(''+member.id+'',''+member.name.replace(/'/g,"\\'")+'')">Member Moved Away</button>'
+    + ' onclick="markCurrentMoved()">Member Moved Away</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Update: '+member.name, html);
 }
+
+// Helper functions that read from window._editMember — no quote escaping needed
+window.setPayAmt = function(v) { document.getElementById("payAmt").value = v; };
+window.saveCurrentPay = function() {
+  if(window._editMember) savePay(window._editMember.id, window._editMember.name);
+};
+window.markCurrentUnpaid = function() {
+  if(window._editMember) markUnpaid(window._editMember.id, window._editMember.name);
+};
+window.markCurrentMoved = function() {
+  if(window._editMember) markMoved(window._editMember.id, window._editMember.name);
+};
+
 
 window.savePay = async function(id, name) {
   const amt     = parseInt(document.getElementById('payAmt').value)||0;
@@ -1570,20 +1588,24 @@ async function scheduleNotifications() {
 //  GUARD MANAGEMENT
 // ══════════════════════════════════════════════════════════════
 function openGuardSheet(guard) {
-  openSheet(`Guard: ${guard.name}`, '
-    <div class="form-group">
-      <label class="form-label">Guard Name</label>
-      <input class="form-input" id="gEditName" value="' + (guard.name) + '"/>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Monthly Salary (MWK)</label>
-      <input class="form-input" type="number" id="gEditSal" value="' + (guard.salary||25000) + '"/>
-    </div>
-    <button class="btn btn-primary" onclick="saveGuardEdit('' + (guard.id) + '')">✅ Save Changes</button>
-    <button class="btn btn-danger" onclick="deactivateGuard('' + (guard.id) + '','' + (guard.name) + '')">🚫 Deactivate / Fire Guard</button>
-    <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>
-  ');
+  window._editGuard = guard;
+  var html = '<div class="form-group"><label class="form-label">Guard Name</label>'
+    + '<input class="form-input" id="gEditName" value="'+guard.name+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Monthly Salary (MWK)</label>'
+    + '<input class="form-input" type="number" id="gEditSal" value="'+(guard.salary||31250)+'"/></div>'
+    + '<button class="btn btn-primary" onclick="saveCurrentGuard()">Save Changes</button>'
+    + '<button class="btn btn-danger" onclick="deactivateCurrentGuard()">Deactivate / Fire Guard</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Guard: '+guard.name, html);
 }
+
+window.saveCurrentGuard = function() {
+  if(window._editGuard) saveGuardEdit(window._editGuard.id);
+};
+window.deactivateCurrentGuard = function() {
+  if(window._editGuard) deactivateGuard(window._editGuard.id, window._editGuard.name);
+};
+
 
 window.saveGuardEdit = async function(id) {
   const name = document.getElementById('gEditName').value.trim();
