@@ -1179,8 +1179,8 @@ function renderGuards() {
   slot15.className = 'pay-slot '+(mid.paid?'done':'due');
   document.getElementById('paySlot15Amt').textContent = fmt(totalPay);
   document.getElementById('paySlot15Sub').textContent = mid.paid
-    ? `✅ Paid on ${mid.date} · MWK ${(mid.amount||0).toLocaleString()}`
-    : (cash >= totalPay ? `Due · Cash available: ${fmt(cash)}` : `⚠ Insufficient cash (${fmt(cash)})`);
+    ? ('Paid on '+mid.date+' · MWK '+(mid.amount||0).toLocaleString())
+    : (cash >= totalPay ? ('Due · Cash available: '+fmt(cash)) : ('Insufficient cash ('+fmt(cash)+')'));
   btn15.style.display = isAdmin && !mid.paid ? 'block' : 'none';
   btn15.disabled = cash < totalPay;
   btn15.style.opacity = cash < totalPay ? '0.4' : '1';
@@ -1193,8 +1193,8 @@ function renderGuards() {
   document.getElementById('paySlotEndAmt').textContent = fmt(totalPay);
   const cashAfterMid = mid.paid ? cash : cash - totalPay;
   document.getElementById('paySlotEndSub').textContent = end.paid
-    ? `✅ Paid on ${end.date} · MWK ${(end.amount||0).toLocaleString()}`
-    : (!mid.paid ? '⏳ Pay 15th first' : (cashAfterMid >= totalPay ? `Due · Cash available: ${fmt(cashAfterMid)}` : `⚠ Insufficient cash (${fmt(cashAfterMid)})`));
+    ? ('Paid on '+end.date+' · MWK '+(end.amount||0).toLocaleString())
+    : (!mid.paid ? 'Pay 15th first' : (cashAfterMid >= totalPay ? ('Due · Cash: '+fmt(cashAfterMid)) : ('Insufficient cash ('+fmt(cashAfterMid)+')')));
   btnEnd.style.display = isAdmin && mid.paid && !end.paid ? 'block' : 'none';
   btnEnd.disabled = cashAfterMid < totalPay;
   btnEnd.style.opacity = cashAfterMid < totalPay ? '0.4' : '1';
@@ -1215,131 +1215,16 @@ function renderGuards() {
   if(ledger.length === 0){
     ledgerEl.innerHTML='<div style="color:var(--grey3);font-size:12px;text-align:center;padding:10px">No transactions yet</div>';
   } else {
-    ledgerEl.innerHTML = ledger.map(t=>`
-      <div class="ledger-row">
-        <div class="ledger-desc">
-          <div>${t.description}</div>
-          <div class="ledger-date">${t.date}</div>
-        </div>
-        <div>
-          <div class="${t.type==='out'?'ledger-amt-out':'ledger-amt-in'}">
-            ${t.type==='out'?'−':'+'} MWK ${(t.amount||0).toLocaleString()}
-          </div>
-          <div style="font-size:10px;color:var(--grey3);text-align:right">Bal: ${fmt(t.balance)}</div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  // Other funds
-
-}
-
-// ══════════════════════════════════════════════════════════════
-//  HISTORY
-// ══════════════════════════════════════════════════════════════
-function renderHistory() {
-  const el = document.getElementById('historyBody');
-  el.innerHTML = '';
-  [...MONTHS].reverse().forEach(mo => {
-    const paid = members.filter(m=>(m.contributions?.[mo.key]||0)>0);
-    if(!paid.length) return;
-    const total = paid.reduce((s,m)=>s+(m.contributions[mo.key]||0),0);
-    const block = document.createElement('div');
-    block.className = 'hist-month';
-    block.innerHTML = `<div class="hist-head"><span>${mo.key}</span><span style="color:var(--green);font-weight:800">${fmt(total)}</span></div>`;
-    paid.forEach(m=>{
-      const r=document.createElement('div');
-      r.className='hist-row';
-      r.innerHTML=`<span>${m.name}</span><span style="color:var(--green);font-weight:600">${fmt(m.contributions[mo.key])}</span>`;
-      block.appendChild(r);
-    });
-    el.appendChild(block);
-  });
-}
-
-// ══════════════════════════════════════════════════════════════
-//  ADMIN AUTH
-// ══════════════════════════════════════════════════════════════
-window.requestAdmin = function() {
-  if(isAdmin){ openAdminMenu(); return; }
-  document.getElementById('login-overlay').classList.add('open');
-  document.getElementById('loginPwd').value='';
-  document.getElementById('loginErr').textContent='';
-  setTimeout(()=>document.getElementById('loginPwd').focus(),300);
-};
-
-window.doLogin = function() {
-  const pwd = document.getElementById('loginPwd').value;
-  if(pwd===ADMIN_PASSWORD){
-    isAdmin=true;
-    document.getElementById('login-overlay').classList.remove('open');
-    document.getElementById('adminBtn').textContent='⚙ Admin ✓';
-    document.getElementById('adminBtn').style.background='rgba(144,238,144,.3)';
-    toast('✅ Admin access granted');
-    scheduleNotifications();
-    renderCurrentPage();
-  } else {
-    document.getElementById('loginErr').textContent='Incorrect password.';
-    document.getElementById('loginPwd').value='';
-  }
-};
-
-window.closeLogin = function() {
-  document.getElementById('login-overlay').classList.remove('open');
-};
-
-document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-
-function openAdminMenu() {
-  var html = '<button class="btn btn-primary" onclick="adminAddMember()">Add New Member</button>'
-    + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
-    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
-    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
-    + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
-    + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Admin Menu', html);
-}
-
-window.doLogout = function() {
-  isAdmin=false;
-  document.getElementById('adminBtn').textContent='⚙ Admin';
-  document.getElementById('adminBtn').style.background='rgba(255,255,255,.15)';
-  closeSheet();
-  toast('Logged out');
-  renderCurrentPage();
-};
-
-// ══════════════════════════════════════════════════════════════
-//  BOTTOM SHEET
-// ══════════════════════════════════════════════════════════════
-function openSheet(title, html) {
-  document.getElementById('sheetTitle').textContent = title;
-  document.getElementById('sheetBody').innerHTML = html;
-  document.getElementById('sheet-overlay').classList.add('open');
-}
-
-window.closeSheet = function(e) {
-  if(e && e.target !== document.getElementById('sheet-overlay')) return;
-  document.getElementById('sheet-overlay').classList.remove('open');
-};
-// also expose for onclick
-window.closeAdminSheet = function() {
-  document.getElementById('sheet-overlay').classList.remove('open');
-};
-
-// ══════════════════════════════════════════════════════════════
-//  PAYMENT SHEET
-// ══════════════════════════════════════════════════════════════
-function openPaySheet(member) {
-  // Use global to avoid quote-escaping issues in onclick attributes
-  window._editMember = member;
-  var cur = (member.contributions && member.contributions[selectedMonth])
-    ? member.contributions[selectedMonth] : '';
-  var std = getStd(selectedMonth);
-  var monthOpts = MONTHS.map(function(m){
-    return '<option value="'+m.key+'"'+(m.key===selectedMonth?' selected':'')+'>'+m.key+'</option>';
-  }).join('');
+        ledgerEl.innerHTML = ledger.map(function(t){
+      var cls = t.type==='out' ? 'ledger-amt-out' : 'ledger-amt-in';
+      var sign = t.type==='out' ? '−' : '+';
+      return '<div class="ledger-row">'
+        + '<div class="ledger-desc"><div>'+t.description+'</div>'
+        + '<div class="ledger-date">'+t.date+'</div></div>'
+        + '<div><div class="'+cls+'">'+sign+' MWK '+(t.amount||0).toLocaleString()+'</div>'
+        + '<div style="font-size:10px;color:var(--grey3);text-align:right">Bal: '+fmt(t.balance)+'</div>'
+        + '</div></div>';
+    }).join('');
   var html = '<div class="form-group"><label class="form-label">Month</label>'
     + '<select class="form-select" id="payMonth">'+monthOpts+'</select></div>'
     + '<div class="form-group"><label class="form-label">Amount Paid (MWK)</label>'
