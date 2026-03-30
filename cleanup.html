@@ -240,50 +240,45 @@ window.resetSettings = async function() {
 // ── STEP 4: GUARDS ───────────────────────────────────────────────────────────
 window.fixGuards = async function() {
   log('\n=== FIXING GUARDS ===');
-  const snap = await getDocs(collection(db, 'guards'));
-  const batch = writeBatch(db);
-  const names = snap.docs.map(d=>d.data().name);
-  let changes = 0;
 
-  const withdrawn = ['Tembo', 'Christopher', 'Nowasi',
-                     'Francis Tembo', 'Francis Manyetera'];
+  const CORRECT_GUARDS = [
+    {name:'Alick Musa',       salary:31250, status:'active'},
+    {name:'Noah Jodan',       salary:31250, status:'active'},
+    {name:'Kelvin Kamaloko',  salary:31250, status:'active'},
+    {name:'Peter Malikebu',   salary:31250, status:'active'},
+  ];
 
-  snap.docs.forEach(d => {
-    const g = d.data();
-    const updates = {};
-    if(withdrawn.some(w => g.name?.toLowerCase().includes(w.toLowerCase())) && g.status==='active') {
-      updates.status = 'inactive';
-      updates.note   = 'Withdrawn Mar 2026';
-      log(`Deactivating: ${g.name}`);
-      changes++;
-    }
-    if(g.salary !== 31250 && g.status === 'active') {
-      updates.salary = 31250;
-      log(`Updating salary: ${g.name} → MWK 31,250`);
-      changes++;
-    }
-    if(Object.keys(updates).length > 0)
-      batch.update(doc(db,'guards',d.id), updates);
-  });
-
-  if(!names.includes('Peter Malikebu')) {
-    batch.set(doc(collection(db,'guards')),
-      {name:'Peter Malikebu', salary:31250, status:'active'});
-    log('Adding Peter Malikebu');
-    changes++;
-  }
-
-  if(changes > 0) {
-    await batch.commit();
-    log(`✅ ${changes} guard updates applied`);
-    document.getElementById('guardsResult').innerHTML =
-      `<br><div class="ok">✅ Guards updated. ${changes} changes applied.</div>`;
+  // Step 1: Delete ALL existing guards
+  const existing = await getDocs(collection(db, 'guards'));
+  if(existing.docs.length > 0) {
+    const delBatch = writeBatch(db);
+    existing.docs.forEach(d => delBatch.delete(doc(db,'guards',d.id)));
+    await delBatch.commit();
+    log('Deleted ' + existing.docs.length + ' existing guard records');
   } else {
-    log('No guard changes needed');
-    document.getElementById('guardsResult').innerHTML =
-      '<br><div class="ok">✅ Guards already correct — no changes needed.</div>';
+    log('Guards collection was empty');
   }
+
+  // Step 2: Write the 4 correct guards fresh
+  const addBatch = writeBatch(db);
+  CORRECT_GUARDS.forEach(function(g) {
+    addBatch.set(doc(collection(db,'guards')), g);
+  });
+  await addBatch.commit();
+  log('Added 4 guards: Alick Musa, Noah Jodan, Kelvin Kamaloko, Peter Malikebu');
+
+  // Step 3: Clear the guardsMigrated flag so app re-runs migration
+  try {
+    await updateDoc(doc(db,'settings','main'), {guardsMigrated: false});
+    log('Reset guardsMigrated flag');
+  } catch(e) { log('Note: ' + e.message); }
+
+  document.getElementById('guardsResult').innerHTML =
+    '<br><div class="ok">✅ Guards reset. 4 active guards written to Firestore.<br>' +
+    'Reload the app to see them.</div>';
+  log('\n✅ Done — reload the app now');
 };
+
 </script>
 </body>
 </html>
