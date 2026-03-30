@@ -1,19 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // MEMBERS: anyone with the link can read, nobody can write from client
-    // (admin writes via the app which uses the SDK directly — 
-    //  for extra security you can add server-side auth later)
-    match /members/{memberId} {
-      allow read: if true;
-      allow write: if true;   // tighten to auth-based later if needed
-    }
-
-    // SETTINGS: same — public read, admin write
-    match /settings/{doc} {
-      allow read: if true;
-      allow write: if true;
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
