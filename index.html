@@ -956,15 +956,7 @@ function renderDevMembers() {
     const breakdown = Object.entries(member.devContributions||{})
       .map(([k,v])=>`<span style="font-size:10px;color:var(--grey3)">${k}: MWK ${v.toLocaleString()}</span>`)
       .join('<br>');
-    row.innerHTML = `
-      <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div>
-      <div style="flex:1;min-width:0">
-        <div class="member-name">${member.name}</div>
-        <div style="font-size:10px;color:var(--grey3);margin-top:2px">${breakdown}</div>
-      </div>
-      <span class="pill paid">MWK ${member.devTotal.toLocaleString()}</span>
-      ${isAdmin?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''}
-    `;
+    row.innerHTML = ` <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div> <div style="flex:1;min-width:0"> <div class="member-name">${member.name}</div> <div style="font-size:10px;color:var(--grey3);margin-top:2px">${breakdown}</div> </div> <span class="pill paid">MWK ${member.devTotal.toLocaleString()}</span> ${isAdmin?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''} `;
     list.appendChild(row);
   });
 
@@ -977,12 +969,7 @@ function renderDevMembers() {
       const row = document.createElement('div');
       row.className='member-row'+(isAdmin?' clickable':'');
       if(isAdmin) row.onclick=()=>openDevContribSheet(member);
-      row.innerHTML=`
-        <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div>
-        <div style="flex:1"><div class="member-name" style="color:var(--grey3)">${member.name}</div></div>
-        <span class="pill unpaid">⬜ Not Yet</span>
-        ${isAdmin?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''}
-      `;
+      row.innerHTML=` <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div> <div style="flex:1"><div class="member-name" style="color:var(--grey3)">${member.name}</div></div> <span class="pill unpaid">⬜ Not Yet</span> ${isAdmin?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''} `;
       sec.appendChild(row);
     });
     list.appendChild(sec);
@@ -1002,7 +989,7 @@ window.openDevContrib = function openDevContrib() {
     + '<input class="form-input" type="number" id="dcAmt" value="20000"/></div>'
     + '<button class="btn btn-primary" onclick="saveDevContrib()">Save</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Dev Fund Contribution''Dev Fund Contribution', html);
+  openSheet('Dev Fund Contribution', html);
 };
 
 window._currentDevMemberId = null;
@@ -1031,7 +1018,7 @@ window.openDevContribSheet = function openDevContribSheet(member) {
     + '<input class="form-input" type="number" id="dceAmt" value="20000"/></div>'
     + '<button class="btn btn-primary" onclick="saveDevContribForMember(\'' + member.id + '\')">Save</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Dev Fund: ''Dev Fund: '+member.name, html);
+  openSheet('Dev Fund: '+member.name, html);
 };
 
 window.saveDevContrib = async function() {
@@ -1100,15 +1087,7 @@ function renderMembers() {
     else if(st==='moved')   pill=`<span class="pill moved">📦 Moved</span>`;
     else pill=`<span class="pill unpaid">⬜ Not Paid</span>`;
 
-    row.innerHTML = `
-      <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div>
-      <div style="flex:1;min-width:0">
-        <div class="member-name">${member.name}</div>
-        ${member.status==='moved'?'<div class="member-sub">Moved away</div>':''}
-      </div>
-      ${pill}
-      ${isAdmin&&member.status!=='moved'?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''}
-    `;
+    row.innerHTML = ` <div class="avatar" style="background:${avatarColor(member.name)}">${initials(member.name)}</div> <div style="flex:1;min-width:0"> <div class="member-name">${member.name}</div> ${member.status==='moved'?'<div class="member-sub">Moved away</div>':''} </div> ${pill} ${isAdmin&&member.status!=='moved'?'<span style="color:var(--grey3);font-size:18px;flex-shrink:0">›</span>':''} `;
     list.appendChild(row);
   });
 }
@@ -1129,15 +1108,7 @@ function renderGuards() {
     const row = document.createElement('div');
     row.className = 'member-row'+(isAdmin?' clickable':'');
     if(isAdmin) row.onclick = ()=>openGuardSheet(g);
-    row.innerHTML = `
-      <div class="avatar" style="background:var(--blue2)">G${i+1}</div>
-      <div style="flex:1">
-        <div class="member-name">${g.name}</div>
-        <div class="member-sub">Active Guard</div>
-      </div>
-      <span class="pill paid">MWK ${(g.salary||25000).toLocaleString()}</span>
-      ${isAdmin?'<span style="color:var(--grey3);font-size:18px">›</span>':''}
-    `;
+    row.innerHTML = ` <div class="avatar" style="background:var(--blue2)">G${i+1}</div> <div style="flex:1"> <div class="member-name">${g.name}</div> <div class="member-sub">Active Guard</div> </div> <span class="pill paid">MWK ${(g.salary||25000).toLocaleString()}</span> ${isAdmin?'<span style="color:var(--grey3);font-size:18px">›</span>':''} `;
     el.appendChild(row);
   });
 
@@ -1154,12 +1125,7 @@ function renderGuards() {
     inactive.forEach(g=>{
       const row = document.createElement('div');
       row.className='member-row';
-      row.innerHTML=`
-        <div class="avatar" style="background:var(--grey3)">G</div>
-        <div style="flex:1"><div class="member-name" style="color:var(--grey3)">${g.name}</div>
-        <div class="member-sub">Deactivated</div></div>
-        <span class="pill moved">Inactive</span>
-      `;
+      row.innerHTML=` <div class="avatar" style="background:var(--grey3)">G</div> <div style="flex:1"><div class="member-name" style="color:var(--grey3)">${g.name}</div> <div class="member-sub">Deactivated</div></div> <span class="pill moved">Inactive</span> `;
       sec.appendChild(row);
     });
     el.appendChild(sec);
@@ -1242,7 +1208,7 @@ function renderGuards() {
     + '<button class="btn" style="background:var(--orange2);color:var(--orange);font-weight:700"'
     + ' onclick="markCurrentMoved()">Member Moved Away</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Update: ''Update: '+member.name, html);
+  openSheet('Update: '+member.name, html);
 }
 
 // Helper functions that read from window._editMember — no quote escaping needed
@@ -1311,7 +1277,7 @@ window.openAddMember = function() {
     + '<input class="form-input" type="number" id="newAmt" value="15000"/></div>'
     + '<button class="btn btn-primary" onclick="saveNewMember()">Add Member</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Add New Member''Add New Member', html);
+  openSheet('Add New Member', html);
 };
 
 window.saveNewMember = async function() {
@@ -1425,7 +1391,7 @@ window.openCorrectCash = function() {
     + ' placeholder="e.g. Reconciled with physical count"/></div>'
     + '<button class="btn btn-primary" onclick="saveCorrectCash()">&#x2705; Set Balance</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Correct Cash Balance''Correct Cash Balance', html);
+  openSheet('Correct Cash Balance', html);
 };
 window.saveCorrectCash = async function() {
   const amt = parseInt(document.getElementById('corrAmt').value)||0;
@@ -1470,7 +1436,7 @@ function openGuardSheet(guard) {
     + '<button class="btn btn-primary" onclick="saveCurrentGuard()">Save Changes</button>'
     + '<button class="btn btn-danger" onclick="deactivateCurrentGuard()">Deactivate / Fire Guard</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Guard: ''Guard: '+guard.name, html);
+  openSheet('Guard: '+guard.name, html);
 }
 
 window.saveCurrentGuard = function() {
