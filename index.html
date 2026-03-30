@@ -268,7 +268,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
 <div id="tabs">
   <div class="tab active"  onclick="switchTab('summary')">📊 Summary</div>
   <div class="tab"         onclick="switchTab('members')">👥 Members</div>
-  <div class="tab"         onclick="switchTab('guards')">🛡 Guards</div>
+  <div class="tab"         onclick="openGuardTab()">🛡 Guards</div>
   <div class="tab"         onclick="switchTab('history')">📅 History</div>
 </div>
 
@@ -312,7 +312,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
           <div class="v" style="color:var(--gold);font-size:20px" id="finCash">—</div>
         </div>
         <div class="fin-box" style="background:var(--blue4);grid-column:1/-1;cursor:pointer"
-          onclick="switchTab('guards')" title="Tap to view Development Fund details">
+          onclick="openGuardTab()" title="Tap to view Development Fund details">
           <div class="t" style="color:var(--blue)">🏗 DEVELOPMENT FUND BALANCE <span style="font-weight:400;font-size:9px">(tap for details)</span></div>
           <div class="v" style="color:var(--blue);font-size:22px" id="dashDevBalance">—</div>
           <div style="font-size:10px;color:var(--blue2);margin-top:3px" id="dashDevSub"></div>
@@ -328,7 +328,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
         <button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px"
           onclick="switchTab('members');setMemberView('dev');openDevContrib()">🏗 Record Dev Contribution</button>
         <button class="btn btn-green" style="margin-top:8px" onclick="openWhatsApp()">📋 Generate WhatsApp Update</button>
-        <button class="btn btn-grey" style="margin-top:8px" onclick="switchTab('guards')">💸 Guard Payroll → Guards Tab</button>
+        <button class="btn btn-grey" style="margin-top:8px" onclick="openGuardTab()">💸 Guard Payroll → Guards Tab</button>
     <button class="btn btn-grey" onclick="closeSheet();openCorrectCash()">&#x1F527; Correct Cash Balance</button>
       </div>
     </div>
@@ -1002,7 +1002,7 @@ window.openDevContrib = function openDevContrib() {
     + '<input class="form-input" type="number" id="dcAmt" value="20000"/></div>'
     + '<button class="btn btn-primary" onclick="saveDevContrib()">Save</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Dev Fund Contribution', html);
+  openSheet('Dev Fund Contribution''Dev Fund Contribution', html);
 };
 
 window._currentDevMemberId = null;
@@ -1031,7 +1031,7 @@ window.openDevContribSheet = function openDevContribSheet(member) {
     + '<input class="form-input" type="number" id="dceAmt" value="20000"/></div>'
     + '<button class="btn btn-primary" onclick="saveDevContribForMember(\'' + member.id + '\')">Save</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Dev Fund: '+member.name, html);
+  openSheet('Dev Fund: ''Dev Fund: '+member.name, html);
 };
 
 window.saveDevContrib = async function() {
@@ -1292,7 +1292,13 @@ window.closeLogin = function() {
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
 function openAdminMenu() {
-  openSheet('Admin Menu', ' <button class="btn btn-primary" onclick="closeSheet();openAddMember()">➕ Add New Member</button> <button class="btn btn-green" onclick="closeSheet();openWhatsApp()">📋 Generate WhatsApp Update</button> <button class="btn btn-gold" onclick="closeSheet();openGuardPayment()">💸 Record Guard Payment</button> <button class="btn btn-grey" onclick="closeSheet();openUpdateCash()">🏦 Update Cash in Hand</button> <button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700" onclick="closeSheet();switchTab('guards');openAddGuard()">🛡 Manage Guards</button> <button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">🔒 Log Out</button> <button class="btn btn-grey" onclick="closeSheet()">Cancel</button> ');
+  var html = '<button class="btn btn-primary" onclick="adminAddMember()">Add New Member</button>'
+    + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
+    + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Admin Menu', html);
 }
 
 window.doLogout = function() {
@@ -1351,7 +1357,7 @@ function openPaySheet(member) {
     + '<button class="btn" style="background:var(--orange2);color:var(--orange);font-weight:700"'
     + ' onclick="markCurrentMoved()">Member Moved Away</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Update: '+member.name, html);
+  openSheet('Update: ''Update: '+member.name, html);
 }
 
 // Helper functions that read from window._editMember — no quote escaping needed
@@ -1420,7 +1426,7 @@ window.openAddMember = function() {
     + '<input class="form-input" type="number" id="newAmt" value="15000"/></div>'
     + '<button class="btn btn-primary" onclick="saveNewMember()">Add Member</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Add New Member', html);
+  openSheet('Add New Member''Add New Member', html);
 };
 
 window.saveNewMember = async function() {
@@ -1507,9 +1513,11 @@ window.openWhatsApp = function() {
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
   text += `⚠ Pay by 15th · NBM A/C: 1104047\nRef: YourSurname+D3Security`;
 
-  openSheet('WhatsApp Update', ' <div style="font-size:11px;color:var(--grey3);margin-bottom:8px"> Preview for <b>' + (selectedMonth) + '</b> — tap Copy then paste into WhatsApp </div> <div class="wa-preview">' + (text) + '</div> <button class="btn btn-green" style="margin-top:10px" onclick="copyWA(' + (JSON.stringify(text).replace(/</g,'\\u003c')) + ')"> 📋 Copy to Clipboard </button> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
+  window._waText = text;
+  openSheet('WhatsApp Update', ' <div style="font-size:11px;color:var(--grey3);margin-bottom:8px"> Preview for <b>') + (selectedMonth) + '</b> — tap Copy then paste into WhatsApp </div> <div class="wa-preview">' + (text) + '</div> <button class="btn btn-green" style="margin-top:10px" onclick="copyCurrentWA()"> 📋 Copy to Clipboard </button> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
 };
 
+window.copyCurrentWA = function() { copyWA(window._waText||""); };
 window.copyWA = function(text) {
   navigator.clipboard.writeText(text)
     .then(()=>toast('✅ Copied! Paste into WhatsApp'))
@@ -1532,7 +1540,7 @@ window.openCorrectCash = function() {
     + ' placeholder="e.g. Reconciled with physical count"/></div>'
     + '<button class="btn btn-primary" onclick="saveCorrectCash()">&#x2705; Set Balance</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Correct Cash Balance', html);
+  openSheet('Correct Cash Balance''Correct Cash Balance', html);
 };
 window.saveCorrectCash = async function() {
   const amt = parseInt(document.getElementById('corrAmt').value)||0;
@@ -1577,7 +1585,7 @@ function openGuardSheet(guard) {
     + '<button class="btn btn-primary" onclick="saveCurrentGuard()">Save Changes</button>'
     + '<button class="btn btn-danger" onclick="deactivateCurrentGuard()">Deactivate / Fire Guard</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
-  openSheet('Guard: '+guard.name, html);
+  openSheet('Guard: ''Guard: '+guard.name, html);
 }
 
 window.saveCurrentGuard = function() {
@@ -1636,12 +1644,12 @@ window.processGuardPay = async function(period) {
   }
   const availCash = period === 'end' && moPay.mid?.paid ? cash : cash;
   if(availCash < pay){
-    openSheet('⚠ Insufficient Funds', ' <div class="alert-error">🚫 Cannot process payment</div> <div style="font-size:14px;line-height:1.6;margin-bottom:14px"> <b>Required:</b> ' + (fmt(pay)) + '<br> <b>Cash in hand:</b> ' + (fmt(availCash)) + '<br> <b>Shortfall:</b> ' + (fmt(pay - availCash)) + ' </div> <div class="alert-warn">Collect outstanding contributions before processing this payment.</div> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
+    openSheet('⚠ Insufficient Funds', ' <div class="alert-error">🚫 Cannot process payment</div> <div style="font-size:14px;line-height:1.6;margin-bottom:14px"> <b>Required:</b> ') + (fmt(pay)) + '<br> <b>Cash in hand:</b> ' + (fmt(availCash)) + '<br> <b>Shortfall:</b> ' + (fmt(pay - availCash)) + ' </div> <div class="alert-warn">Collect outstanding contributions before processing this payment.</div> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
     return;
   }
 
   const label = period === 'mid' ? '15th' : 'End-of-Month';
-  openSheet(`Confirm ${label} Payment`, ' <div style="font-size:14px;line-height:1.8;margin-bottom:14px"> <b>Month:</b> ' + (selectedMonth) + '<br> <b>Payment:</b> ' + (label) + '<br> <b>Amount:</b> ' + (fmt(pay)) + '<br> <b>Cash in hand after:</b> ' + (fmt(availCash - pay)) + ' </div> <div class="alert-warn">This will deduct ' + (fmt(pay)) + ' from cash in hand and cannot be undone.</div> <button class="btn btn-green" onclick="confirmGuardPay('' + (period) + '',' + (pay) + ')">✅ Confirm Payment</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  openSheet(`Confirm ${label} Payment`, ' <div style="font-size:14px;line-height:1.8;margin-bottom:14px"> <b>Month:</b> ') + (selectedMonth) + '<br> <b>Payment:</b> ' + (label) + '<br> <b>Amount:</b> ' + (fmt(pay)) + '<br> <b>Cash in hand after:</b> ' + (fmt(availCash - pay)) + ' </div> <div class="alert-warn">This will deduct ' + (fmt(pay)) + ' from cash in hand and cannot be undone.</div> <button class="btn btn-green" onclick="confirmGuardPay('' + (period) + '',' + (pay) + ')">✅ Confirm Payment</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.confirmGuardPay = async function(period, amount) {
@@ -1680,7 +1688,8 @@ window.saveDevFundIn = async function() {
 // Dev fund — money OUT (with validation)
 window.openDevFundOut = function() {
   const balance = (settings.devFundRaised||0) - (settings.devFundSpent||0);
-  openSheet('💸 Development Fund – Expenditure', ' ' + (balance <= 0 ? '<div class="alert-error">🚫 No funds available in Dev Fund</div>' : '') + ' <div class="alert-warn">Available balance: <b>' + (fmt(balance)) + '</b></div> <div class="form-group"> <label class="form-label">What was purchased / used for?</label> <input class="form-input" type="text" id="doDesc" placeholder="e.g. Borehole survey, Nov 2025"/> </div> <div class="form-group"> <label class="form-label">Amount Spent (MWK)</label> <input class="form-input" type="number" id="doAmt" placeholder="0" oninput="checkDevFundLimit(this.value,' + (balance) + ')"/> </div> <div id="devFundErr" style="display:none" class="alert-error">🚫 Amount exceeds available balance</div> <button class="btn btn-danger" id="devFundSaveBtn" onclick="saveDevFundOut(' + (balance) + ')">✅ Record Expenditure</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  window._devBalance = balance;
+  openSheet('💸 Development Fund – Expenditure', ' ') + (balance <= 0 ? '<div class="alert-error">🚫 No funds available in Dev Fund</div>' : '') + ' <div class="alert-warn">Available balance: <b>' + (fmt(balance)) + '</b></div> <div class="form-group"> <label class="form-label">What was purchased / used for?</label> <input class="form-input" type="text" id="doDesc" placeholder="e.g. Borehole survey, Nov 2025"/> </div> <div class="form-group"> <label class="form-label">Amount Spent (MWK)</label> <input class="form-input" type="number" id="doAmt" placeholder="0" oninput="checkDevFundLimit(this.value,' + (balance) + ')"/> </div> <div id="devFundErr" style="display:none" class="alert-error">🚫 Amount exceeds available balance</div> <button class="btn btn-danger" id="devFundSaveBtn" onclick="saveCurrentDevFundOut()">✅ Record Expenditure</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.checkDevFundLimit = function(val, balance) {
@@ -1693,6 +1702,7 @@ window.checkDevFundLimit = function(val, balance) {
   btn.style.opacity = over ? '0.4' : '1';
 };
 
+window.saveCurrentDevFundOut = function() { saveDevFundOut(window._devBalance||0); };
 window.saveDevFundOut = async function(balance) {
   const desc = document.getElementById('doDesc').value.trim();
   const amt  = parseInt(document.getElementById('doAmt').value)||0;
@@ -1713,7 +1723,7 @@ window.saveDevFundOut = async function(balance) {
 };
 
 window.openUpdateFunds = function() {
-  openSheet('Update Fund Balances', ' <div class="form-group"> <label class="form-label">Dev Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufDevSpent" value="' + (settings.devFundSpent||0) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Raised (MWK)</label> <input class="form-input" type="number" id="ufBarRaised" value="' + (settings.barrierFundRaised||75000) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufBarSpent" value="' + (settings.barrierFundSpent||0) + '"/> </div> <button class="btn btn-primary" onclick="saveFundBalances()">✅ Update</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
+  openSheet('Update Fund Balances', ' <div class="form-group"> <label class="form-label">Dev Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufDevSpent" value="') + (settings.devFundSpent||0) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Raised (MWK)</label> <input class="form-input" type="number" id="ufBarRaised" value="' + (settings.barrierFundRaised||75000) + '"/> </div> <div class="form-group"> <label class="form-label">Barrier Fund Spent (MWK)</label> <input class="form-input" type="number" id="ufBarSpent" value="' + (settings.barrierFundSpent||0) + '"/> </div> <button class="btn btn-primary" onclick="saveFundBalances()">✅ Update</button> <button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button> ');
 };
 
 window.saveFundBalances = async function() {
@@ -1727,6 +1737,15 @@ window.saveFundBalances = async function() {
   closeAdminSheet();
   toast('✅ Fund balances updated');
 };
+
+
+// ── Admin menu action helpers (avoids quotes-in-onclick issues) ───────────────
+window.adminAddMember   = function(){ closeSheet(); openAddMember(); };
+window.adminWhatsApp    = function(){ closeSheet(); openWhatsApp(); };
+window.openGuardTab     = function(){ closeSheet(); switchTab('guards'); };
+window.adminGuardMgmt   = function(){ closeSheet(); switchTab('guards'); openAddGuard(); };
+window.adminGuardPayroll= function(){ closeSheet(); switchTab('guards'); };
+window.adminCorrectCash = function(){ closeSheet(); openCorrectCash(); };
 
 // ══════════════════════════════════════════════════════════════
 //  TOAST
