@@ -760,7 +760,8 @@ function startListeners() {
 
   onSnapshot(collection(db, 'guards'), snap => {
     guards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if(currentTab === 'guards') renderGuards();
+    renderGuards();
+    if(currentTab === 'summary') renderSummary();
   });
 
   unsubSettings = onSnapshot(doc(db, 'settings', 'main'), snap => {
