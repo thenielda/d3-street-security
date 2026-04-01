@@ -330,6 +330,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
         <button class="btn btn-green" style="margin-top:8px" onclick="openWhatsApp()">📋 Generate WhatsApp Update</button>
         <button class="btn btn-grey" style="margin-top:8px" onclick="openGuardTab()">💸 Guard Payroll → Guards Tab</button>
     <button class="btn btn-grey" onclick="closeSheet();openCorrectCash()">&#x1F527; Correct Cash Balance</button>
+    <button class="btn btn-grey" style="margin-top:8px" onclick="openEditPaymentRef()">✏ Edit Payment Reference</button>
       </div>
     </div>
   </div>
@@ -548,6 +549,9 @@ const MONTHS = [
   {key:'Jul 2025',std:15000},{key:'Aug 2025',std:15000},{key:'Sep 2025',std:15000},
   {key:'Oct 2025',std:15000},{key:'Nov 2025',std:15000},{key:'Dec 2025',std:15000},
   {key:'Jan 2026',std:15000},{key:'Feb 2026',std:15000},{key:'Mar 2026',std:15000},
+  {key:'Apr 2026',std:15000},{key:'May 2026',std:15000},{key:'Jun 2026',std:15000},
+  {key:'Jul 2026',std:15000},{key:'Aug 2026',std:15000},{key:'Sep 2026',std:15000},
+  {key:'Oct 2026',std:15000},{key:'Nov 2026',std:15000},{key:'Dec 2026',std:15000},
 ];
 
 // Guards loaded live from Firestore
@@ -629,6 +633,9 @@ async function migrateSettings() {
     {type:'out',description:'Tools purchased (pangas+phone)',amount:87500, date:'2025-06-18', balance:50500},
     {type:'in', description:'Barrier contributions',       amount:37000,  date:'2025-10-01', balance:87500}
   ];
+  if(existing.treasurerName   === undefined) updates.treasurerName   = 'Daniel Nkosi';
+  if(existing.bankAccount     === undefined) updates.bankAccount     = '1104047';
+  if(existing.airtelNumber    === undefined) updates.airtelNumber    = '0995434640';
 
   if(Object.keys(updates).length > 0) {
     updates.seeded = true;
@@ -1351,6 +1358,7 @@ function openAdminMenu() {
     + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
+    + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminEditPaymentRef()">✏ Edit Payment Reference</button>'
     + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Admin Menu', html);
@@ -1495,7 +1503,13 @@ window.openWhatsApp = function() {
   text += `💸 Guards Paid (${selectedMonth}): MWK ${totalGuardPaid.toLocaleString()}\n`;
   text += `🏦 Cash in Hand:        MWK ${cash.toLocaleString()}\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `⚠ Pay by 15th · NBM A/C: 1104047\nRef: YourSurname+D3Security`;
+  const treasurer = settings.treasurerName || 'Daniel Nkosi';
+  const bankAcc   = settings.bankAccount   || '1104047';
+  const airtel    = settings.airtelNumber  || '0995434640';
+  text += `⚠ Pay by 15th\n`;
+  text += `🏦 NBM A/C: ${bankAcc} · Ref: YourSurname+D3Security\n`;
+  text += `📱 Airtel Money: ${airtel}, ${treasurer}\n`;
+  text += `Ref: ${treasurer}, Treasurer`;
 
   window._waText = text;
   openSheet('WhatsApp Update', ' <div style="font-size:11px;color:var(--grey3);margin-bottom:8px"> Preview for <b>'+ (selectedMonth) + '</b> — tap Copy then paste into WhatsApp </div> <div class="wa-preview">' + (text) + '</div> <button class="btn btn-green" style="margin-top:10px" onclick="copyCurrentWA()"> 📋 Copy to Clipboard </button> <button class="btn btn-grey" onclick="closeAdminSheet()">Close</button> ');
@@ -1535,7 +1549,36 @@ window.saveCorrectCash = async function() {
 };
 
 // ══════════════════════════════════════════════════════════════
-//  PUSH NOTIFICATIONS
+//  TREASURER / PAYMENT REFERENCE SETTINGS
+// ══════════════════════════════════════════════════════════════
+window.openEditPaymentRef = function() {
+  const name   = settings.treasurerName || 'Daniel Nkosi';
+  const bank   = settings.bankAccount   || '1104047';
+  const airtel = settings.airtelNumber  || '0995434640';
+  const html = '<div class="form-group"><label class="form-label">Treasurer Name</label>'
+    + '<input class="form-input" type="text" id="prName" value="' + name + '" placeholder="e.g. Daniel Nkosi"/></div>'
+    + '<div class="form-group"><label class="form-label">NBM Bank Account No.</label>'
+    + '<input class="form-input" type="text" id="prBank" value="' + bank + '" placeholder="e.g. 1104047"/></div>'
+    + '<div class="form-group"><label class="form-label">Airtel Money Number</label>'
+    + '<input class="form-input" type="tel" id="prAirtel" value="' + airtel + '" placeholder="e.g. 0995434640"/></div>'
+    + '<button class="btn btn-primary" onclick="savePaymentRef()">&#x2705; Save</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Edit Payment Reference', html);
+};
+window.savePaymentRef = async function() {
+  const name   = document.getElementById('prName').value.trim();
+  const bank   = document.getElementById('prBank').value.trim();
+  const airtel = document.getElementById('prAirtel').value.trim();
+  if(!name || !bank || !airtel) { toast('⚠ All fields required'); return; }
+  setSyncState('syncing');
+  await updateDoc(doc(db,'settings','main'),{
+    treasurerName: name,
+    bankAccount:   bank,
+    airtelNumber:  airtel
+  });
+  closeAdminSheet();
+  toast('✅ Payment reference updated');
+};
 // ══════════════════════════════════════════════════════════════
 async function scheduleNotifications() {
   if(!('Notification' in window)) return;
@@ -1733,6 +1776,7 @@ window.openGuardTab     = function(){ closeSheet(); switchTab('guards'); };
 window.adminGuardMgmt   = function(){ closeSheet(); switchTab('guards'); openAddGuard(); };
 window.adminGuardPayroll= function(){ closeSheet(); switchTab('guards'); };
 window.adminCorrectCash = function(){ closeSheet(); openCorrectCash(); };
+window.adminEditPaymentRef = function(){ closeSheet(); openEditPaymentRef(); };
 
 // ══════════════════════════════════════════════════════════════
 //  TOAST
