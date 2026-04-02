@@ -623,7 +623,16 @@ const db  = getFirestore(app);
 let members  = [];       // live from Firestore
 let guards   = [];       // live from Firestore
 let settings = { cashInHand:145000, currentMonth:'Mar 2026' };
-let selectedMonth = 'Mar 2026';
+// Default to current month (or closest past month if current not in list yet)
+function getCurrentMonthKey() {
+  var now = new Date();
+  var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var key = monthNames[now.getMonth()] + ' ' + now.getFullYear();
+  // If current month is in MONTHS list, use it; otherwise use the last available
+  var found = MONTHS.find(function(m){ return m.key === key; });
+  return found ? key : MONTHS[MONTHS.length-1].key;
+}
+let selectedMonth = getCurrentMonthKey();
 let isAdmin  = false;
 let deferredInstall = null;
 let unsubMembers = null;
@@ -800,7 +809,7 @@ async function seedIfEmpty() {
       airtelName: 'Daniel Nkosi',
       refFormat: 'Daniel Nkosi, Treasurer'
     },
-    currentMonth: 'Mar 2026',
+    currentMonth: 'Mar 2026', // updated dynamically on app load
     seeded: true,
     guardPayments: {
       'Mar 2026': {
