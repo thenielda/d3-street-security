@@ -426,7 +426,8 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
 
   <!-- Fortnightly Payroll -->
   <div class="card">
-    <div class="card-head">💸 Fortnightly Payroll <span class="badge" id="payrollMonthBadge">—</span></div>
+    <div class="card-head">💸 Fortnightly Payroll</div>
+    <div class="month-scroller" id="guardsScroller"></div>
     <div class="card-body">
       <div style="font-size:11px;color:var(--grey3);margin-bottom:10px">
         Guards paid on the <b>15th</b> and <b>last day</b> of each month.
@@ -457,6 +458,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
   </div>
 
   <!-- Development Fund -->
+  <div class="card">
+    <div class="card-head">📅 Guard Payment History</div>
+    <div class="card-body" id="guardPayHistory"></div>
+  </div>
+
   <div class="card">
     <div class="card-head">🏗 Development Fund</div>
     <div class="card-body">
@@ -667,8 +673,16 @@ async function migrateSettings() {
     refFormat: 'Daniel Nkosi, Treasurer'
   };
   if(existing.currentMonth      === undefined) updates.currentMonth      = 'Mar 2026';
+  // Fix Mar 2026 end payment if it shows as unpaid
+  if(existing.guardPayments && existing.guardPayments['Mar 2026'] &&
+     existing.guardPayments['Mar 2026'].end && !existing.guardPayments['Mar 2026'].end.paid) {
+    updates['guardPayments.Mar 2026'] = {
+      mid: { paid: true, amount: 125000, date: '15 Mar 2026' },
+      end: { paid: true, amount: 125000, date: '30 Mar 2026' }
+    };
+  }
   if(existing.guardPayments     === undefined) updates.guardPayments     = {
-    'Mar 2026': { mid:{paid:true,amount:125000,date:'15 Mar 2026'}, end:{paid:false} }
+    'Mar 2026': { mid:{paid:true,amount:125000,date:'15 Mar 2026'}, end:{paid:true,amount:125000,date:'30 Mar 2026'} }
   };
   if(!existing.devFundRaised || existing.devFundRaised < 130000) updates.devFundRaised = 138000;
   if(existing.devFundSpent === undefined || existing.devFundSpent === 0 && existing.devFundRaised >= 130000) updates.devFundSpent = 63000;
@@ -820,7 +834,7 @@ async function seedIfEmpty() {
     guardPayments: {
       'Mar 2026': {
         mid: { paid: true, amount: 125000, date: '15 Mar 2026' },
-        end: { paid: false }
+        end: { paid: true,  amount: 125000, date: '30 Mar 2026' }
       }
     },
     devFundRaised: 75000,  // Verified balance: 38,000 initial + 37,000 barrier contributions
@@ -1226,6 +1240,7 @@ function renderMembers() {
 //  GUARDS
 // ══════════════════════════════════════════════════════════════
 function renderGuards() {
+  renderScroller('guardsScroller', renderGuards);
   // ── Guard Roster ──
   const el = document.getElementById('guardsList');
   el.innerHTML = '';
@@ -1262,7 +1277,7 @@ function renderGuards() {
   }
 
   // ── Fortnightly Payroll Slots ──
-  document.getElementById('payrollMonthBadge').textContent = selectedMonth;
+  // payrollMonthBadge removed — month shown in scroller
   document.getElementById('payrollAdminNote').style.display = isAdmin?'none':'block';
   const gp = settings.guardPayments || {};
   const moPay = gp[selectedMonth] || {};
