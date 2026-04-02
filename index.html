@@ -648,6 +648,8 @@ async function migrateSettings() {
   const updates = {};
 
   if(existing.cashInHand        === undefined) updates.cashInHand        = 35000;
+  // Always update currentMonth to today's month
+  updates.currentMonth = getCurrentMonthKey();
   // Force correct cash if it's clearly wrong (negative or zero when we know it's 145,000)
   if(existing.cashInHand !== undefined && existing.cashInHand < 0) {
     updates.cashInHand = 35000;
@@ -857,7 +859,7 @@ function startListeners() {
   unsubSettings = onSnapshot(doc(db, 'settings', 'main'), snap => {
     if (snap.exists()) {
       settings = { ...settings, ...snap.data() };
-      selectedMonth = settings.currentMonth || selectedMonth;
+      // Don't override selectedMonth from Firestore — keep dynamic current month
       renderCurrentPage();
     }
   });
@@ -1390,7 +1392,13 @@ window.updateAdvancePreview = function() {
 };
 window.saveCurrentPay = function() {
   if(!window._editMember) return;
-  var months = parseInt(document.getElementById('payMonths')?.value)||1;
+  var amt = parseInt(document.getElementById('payAmt')?.value)||0;
+  var std = getStd(document.getElementById('payMonth')?.value || selectedMonth);
+  // Auto-detect months from amount
+  var months = (amt > 0 && std > 0 && amt % std === 0) ? (amt / std) : 1;
+  var manualMonths = parseInt(document.getElementById('payMonths')?.value)||1;
+  // Use whichever is larger (manual override wins if explicitly set > 1)
+  months = Math.max(months, manualMonths);
   if(months > 1) {
     saveAdvancePay(window._editMember.id, window._editMember.name, months);
   } else {
@@ -1422,8 +1430,9 @@ window.savePay = async function(id, name) {
 };
 
 window.saveAdvancePay = async function(id, name, numMonths) {
-  var std = getStd(selectedMonth);
-  var startIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
+  var startMo = document.getElementById('payMonth')?.value || selectedMonth;
+  var std = getStd(startMo);
+  var startIdx = MONTHS.findIndex(function(m){ return m.key===startMo; });
   if(startIdx === -1) { toast('Select a starting month'); return; }
 
   var member = members.find(function(m){ return m.id===id; });
