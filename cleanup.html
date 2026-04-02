@@ -150,7 +150,7 @@ window.resetSettings = async function() {
   try {
     log('\n=== FIXING SETTINGS ===');
     await setDoc(doc(db,'settings','main'), {
-      cashInHand: 145000,
+      cashInHand: 35000,
       currentMonth: 'Mar 2026',
       seeded: true,
       guardsMigrated: false,
@@ -167,7 +167,7 @@ window.resetSettings = async function() {
     }, {merge: true});
     log('✅ Settings fixed');
     document.getElementById('settingsResult').innerHTML =
-      '<br><div class="ok">✅ Settings fixed. Cash: MWK 145,000 · Dev Fund: MWK 87,500</div>';
+      '<br><div class="ok">✅ Settings fixed. Cash: MWK 35,000 · Dev Fund: MWK 87,500</div>';
   } catch(e) { showErr('settingsResult', e.message); }
 };
 

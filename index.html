@@ -307,13 +307,21 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
           <div class="t" style="color:var(--red)">GUARD PAYROLL</div>
           <div class="v" style="color:var(--red)" id="finPayroll">—</div>
         </div>
-        <div class="fin-box" style="background:var(--pale-blue,#DEEAF1)">
+        <div class="fin-box" style="background:var(--blue4)">
           <div class="t" style="color:var(--blue)">BALANCE B/F</div>
           <div class="v" style="color:var(--blue);font-size:16px" id="finBF">—</div>
         </div>
-        <div class="fin-box" style="background:var(--gold2);grid-column:1/-1">
-          <div class="t" style="color:var(--gold)">CASH IN HAND (SECURITY)</div>
+        <div class="fin-box" style="background:var(--purple2)">
+          <div class="t" style="color:var(--purple)">ADVANCES HELD</div>
+          <div class="v" style="color:var(--purple);font-size:16px" id="finAdvance">—</div>
+        </div>
+        <div class="fin-box" style="background:var(--gold2)">
+          <div class="t" style="color:var(--gold)">SECURITY CASH</div>
           <div class="v" style="color:var(--gold);font-size:20px" id="finCash">—</div>
+        </div>
+        <div class="fin-box" style="background:var(--blue4)">
+          <div class="t" style="color:var(--blue)">DEV FUND</div>
+          <div class="v" style="color:var(--blue);font-size:18px" id="finDev">—</div>
         </div>
         <div class="fin-box" style="background:var(--blue4);grid-column:1/-1;cursor:pointer"
           onclick="openGuardTab()" title="Tap to view Development Fund details">
@@ -630,15 +638,14 @@ async function migrateSettings() {
   const existing = snap.exists() ? snap.data() : {};
   const updates = {};
 
-  if(existing.cashInHand        === undefined) updates.cashInHand        = 145000;
+  if(existing.cashInHand        === undefined) updates.cashInHand        = 35000;
   // Force correct cash if it's clearly wrong (negative or zero when we know it's 145,000)
   if(existing.cashInHand !== undefined && existing.cashInHand < 0) {
-    updates.cashInHand = 145000;
+    updates.cashInHand = 35000;
     console.log('Corrected negative cashInHand to 145,000');
   }
   if(!existing.monthBalances) updates.monthBalances = {
-    'Feb 2026': 155000,
-    'Mar 2026': 145000
+    'Mar 2026': 35000
   };
   if(!existing.paymentRef) updates.paymentRef = {
     bankName: 'NBM', bankAccount: '1104047',
@@ -785,7 +792,7 @@ async function seedIfEmpty() {
   }
 
   batch.set(doc(db, 'settings', 'main'), {
-    cashInHand: 145000,
+    cashInHand: 35000,
     paymentRef: {
       bankName: 'NBM',
       bankAccount: '1104047',
@@ -880,6 +887,25 @@ function computeCashInHand() {
   return settings.cashInHand || 0;
 }
 
+// Calculate how much of cash in hand represents advance payments for future months
+function computeAdvanceHeld() {
+  var now = new Date();
+  var currentMonthKey = selectedMonth; // use selected month as reference
+  var currentIdx = MONTHS.findIndex(function(m){ return m.key === currentMonthKey; });
+  var advance = 0;
+  members.forEach(function(m) {
+    if(!m.contributions) return;
+    Object.entries(m.contributions).forEach(function(entry) {
+      var mo = entry[0]; var amt = entry[1];
+      var idx = MONTHS.findIndex(function(x){ return x.key === mo; });
+      if(idx > currentIdx && amt > 0) {
+        advance += amt; // paid for a future month
+      }
+    });
+  });
+  return advance;
+}
+
 function totalGuardPayroll() {
   return guards.filter(g=>g.status==='active').reduce((s,g)=>s+(g.salary||25000),0);
 }
@@ -964,23 +990,26 @@ function renderSummary() {
   const computedCash = computeCashInHand();
   document.getElementById('finCollected').textContent    = fmt(total);
   document.getElementById('finPayroll').textContent      = fmt(totalGuardPayroll());
-  document.getElementById('finCash').textContent         = fmt(computedCash);
-  // Balance brought forward = closing balance of previous month
+  document.getElementById('finCash').textContent = fmt(computedCash);
+
+  // Advances held (paid for future months)
+  var advanceHeld = computeAdvanceHeld();
+  var advEl = document.getElementById('finAdvance');
+  if(advEl) advEl.textContent = advanceHeld > 0 ? fmt(advanceHeld) : 'None';
+
+  // Dev fund balance (separate from security)
+  var devBal2 = (settings.devFundRaised||0) - (settings.devFundSpent||0);
+  var devEl = document.getElementById('finDev');
+  if(devEl) devEl.textContent = fmt(devBal2);
+
+  // Balance brought forward
   var monthIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
   var prevMonth = monthIdx > 0 ? MONTHS[monthIdx-1].key : null;
   var bfAmt = prevMonth && settings.monthBalances && settings.monthBalances[prevMonth]
     ? settings.monthBalances[prevMonth] : null;
   var bfEl = document.getElementById('finBF');
-  if(bfEl) bfEl.textContent = bfAmt !== null ? fmt(bfAmt) : '(not recorded)';
-  const devRaised = settings.devFundRaised||0;
-  const devSpent  = settings.devFundSpent||0;
-  const devBal    = devRaised - devSpent;
-  document.getElementById('dashDevBalance').textContent = fmt(devBal);
-  // Sub-line: total dev contributions from members
-  const devContribTotal = members.reduce((s,m)=>
-    s+Object.values(m.devContributions||{}).reduce((a,v)=>a+(v||0),0),0);
-  document.getElementById('dashDevSub').textContent =
-    devContribTotal > 0 ? `MWK ${devContribTotal.toLocaleString()} raised from members` : 'No contributions recorded yet';
+  if(bfEl) bfEl.textContent = bfAmt !== null ? fmt(bfAmt) : 'Not recorded';
+// Dev fund shown in financial grid cards above
   document.getElementById('adminSummaryActions').style.display = isAdmin?'block':'none';
 }
 
