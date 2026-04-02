@@ -542,13 +542,23 @@ const ADMIN_PASSWORD = 'd3admin2025';
 // ══════════════════════════════════════════════════════════════
 //  STATIC CONSTANTS
 // ══════════════════════════════════════════════════════════════
-const MONTHS = [
-  {key:'Jan 2025',std:20000},{key:'Feb 2025',std:20000},{key:'Mar 2025',std:20000},
-  {key:'Apr 2025',std:15000},{key:'May 2025',std:15000},{key:'Jun 2025',std:15000},
-  {key:'Jul 2025',std:15000},{key:'Aug 2025',std:15000},{key:'Sep 2025',std:15000},
-  {key:'Oct 2025',std:15000},{key:'Nov 2025',std:15000},{key:'Dec 2025',std:15000},
-  {key:'Jan 2026',std:15000},{key:'Feb 2026',std:15000},{key:'Mar 2026',std:15000},
-];
+// Generate months dynamically: Jan 2025 → current month + 3 ahead
+function buildMonths() {
+  const fixed = [
+    {key:'Jan 2025',std:20000},{key:'Feb 2025',std:20000},{key:'Mar 2025',std:20000},
+  ];
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  // Go from Apr 2025 up to 3 months ahead of today
+  const end = new Date(now.getFullYear(), now.getMonth() + 3, 1);
+  let d = new Date(2025, 3, 1); // Apr 2025
+  while(d <= end) {
+    fixed.push({key: monthNames[d.getMonth()] + ' ' + d.getFullYear(), std: 15000});
+    d.setMonth(d.getMonth() + 1);
+  }
+  return fixed;
+}
+const MONTHS = buildMonths();
 
 // Guards loaded live from Firestore
 // Guard roster as at March 2026 (after mid-month roster change)
@@ -617,12 +627,17 @@ async function migrateSettings() {
   const updates = {};
 
   if(existing.cashInHand        === undefined) updates.cashInHand        = 145000;
+  if(!existing.paymentRef) updates.paymentRef = {
+    bankName: 'NBM', bankAccount: '1104047',
+    airtelNumber: '0995434640', airtelName: 'Daniel Nkosi',
+    refFormat: 'Daniel Nkosi, Treasurer'
+  };
   if(existing.currentMonth      === undefined) updates.currentMonth      = 'Mar 2026';
   if(existing.guardPayments     === undefined) updates.guardPayments     = {
     'Mar 2026': { mid:{paid:true,amount:125000,date:'15 Mar 2026'}, end:{paid:false} }
   };
-  if(!existing.devFundRaised || existing.devFundRaised < 100000) updates.devFundRaised = 175000;
-  if(existing.devFundSpent === undefined || existing.devFundSpent < 87500) updates.devFundSpent = 87500;
+  if(!existing.devFundRaised || existing.devFundRaised > 100000) updates.devFundRaised = 75000;
+  if(existing.devFundSpent === undefined) updates.devFundSpent = 0;
   if(existing.devFundLedger === undefined) updates.devFundLedger = [
     {type:'in', description:'Development Reserve',         amount:38000,  date:'2025-01-31', balance:38000},
     {type:'in', description:'Guard tools raised',          amount:100000, date:'2025-06-01', balance:138000},
@@ -677,7 +692,25 @@ async function migrateSettings() {
   }
 
   // Patch devContributions for existing members from WhatsApp records
-  const devPatch = {"Nkosi": 40000, "Kamwaza": 25000, "Kumwenda": 25000, "Chakhumata": 25000, "Masinga": 20000, "Manda": 5000, "Kamnkhwani": 5000, "Saka": 5000, "Gogo Weluzani": 5000, "Mchizi": 5000, "Chimaliro": 5000, "Lapken": 5000, "Kapira": 5000, "Magetsi": 5000, "Pascal Banda": 5000, "Zikani": 5000, "Kayange": 5000, "Chikuni": 5000};
+  const devPatch = {
+    "Nkosi": 20000,
+    "Kamwaza": 5000,
+    "Kumwenda": 5000,
+    "Chakhumata": 5000,
+    "Manda": 5000,
+    "Kamnkhwani": 5000,
+    "Saka": 5000,
+    "Gogo Weluzani": 5000,
+    "Mchizi": 5000,
+    "Chimaliro": 5000,
+    "Lapken": 5000,
+    "Kapira": 5000,
+    "Magetsi": 5000,
+    "Pascal Banda": 5000,
+    "Zikani": 5000,
+    "Kayange": 5000,
+    "Chikuni": 5000,
+  };
   const membersSnap2 = await getDocs(collection(db, 'members'));
   const patchBatch = writeBatch(db);
   let patched = 0;
@@ -739,6 +772,13 @@ async function seedIfEmpty() {
 
   batch.set(doc(db, 'settings', 'main'), {
     cashInHand: 145000,
+    paymentRef: {
+      bankName: 'NBM',
+      bankAccount: '1104047',
+      airtelNumber: '0995434640',
+      airtelName: 'Daniel Nkosi',
+      refFormat: 'Daniel Nkosi, Treasurer'
+    },
     currentMonth: 'Mar 2026',
     seeded: true,
     guardPayments: {
@@ -747,13 +787,14 @@ async function seedIfEmpty() {
         end: { paid: false }
       }
     },
-    devFundRaised: 175000, // Development Fund (dev + barrier + tools)
-    devFundSpent: 87500,   // Tools already purchased (pangas + phone)
+    devFundRaised: 75000,  // Verified balance: 38,000 initial + 37,000 barrier contributions
+    devFundSpent: 0,       // Tools tracked separately as guard expenditure
     devFundLedger: [
-      {type:'in',  description:'Development Reserve – initial allocation',        amount:38000,  date:'2025-01-31', balance:38000},
-      {type:'in',  description:'Guard tools fund – raised (cumulative)',           amount:100000, date:'2025-06-01', balance:138000},
-      {type:'out', description:'Guard tools purchased (pangas × 5, mobile phone)',amount:87500,  date:'2025-06-18', balance:50500},
-      {type:'in',  description:'Barrier construction contributions (cumulative)',  amount:37000,  date:'2025-10-01', balance:87500}
+      {type:'in',  description:'Initial development allocation',             amount:38000, date:'2025-01-31', balance:38000},
+      {type:'in',  description:'Barrier construction contributions (17 members)', amount:45000, date:'2025-10-01', balance:83000},
+      {type:'out', description:'Redirected to Nov 2025 guard payment deficit',    amount:25000, date:'2025-11-30', balance:58000},
+      {type:'out', description:'Redirected to Dec 2025 guard payment deficit',    amount:20000, date:'2025-12-31', balance:38000},
+      {type:'in',  description:'Additional barrier contributions',                amount:37000, date:'2026-01-31', balance:75000}
     ],
     // Barrier fund merged into devFund above
     // (removed — single fund)
@@ -1351,6 +1392,7 @@ function openAdminMenu() {
     + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
+    + '<button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px" onclick="openEditPayRef()">✏ Edit Payment Reference</button>'
     + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Admin Menu', html);
@@ -1532,6 +1574,41 @@ window.saveCorrectCash = async function() {
   await updateDoc(doc(db,'settings','main'),{cashInHand: amt});
   closeAdminSheet();
   toast('✅ Cash corrected to ' + fmt(amt));
+};
+
+
+// ══════════════════════════════════════════════════════════════
+//  PAYMENT REFERENCE EDITOR
+// ══════════════════════════════════════════════════════════════
+window.openEditPayRef = function() {
+  var r = settings.paymentRef || {};
+  var html = '<div class="form-group"><label class="form-label">Bank Name</label>'
+    + '<input class="form-input" id="prBank" value="'+(r.bankName||'NBM')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Bank Account Number</label>'
+    + '<input class="form-input" id="prAcct" value="'+(r.bankAccount||'1104047')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Airtel Money Number</label>'
+    + '<input class="form-input" id="prAirtel" value="'+(r.airtelNumber||'0995434640')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Airtel Name</label>'
+    + '<input class="form-input" id="prAirtelName" value="'+(r.airtelName||'Daniel Nkosi')+'"/></div>'
+    + '<div class="form-group"><label class="form-label">Reference / Treasurer Name</label>'
+    + '<input class="form-input" id="prRef" value="'+(r.refFormat||'Daniel Nkosi, Treasurer')+'"/></div>'
+    + '<button class="btn btn-primary" onclick="savePayRef()">✅ Save</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Edit Payment Reference', html);
+};
+
+window.savePayRef = async function() {
+  var ref = {
+    bankName:     document.getElementById('prBank').value.trim(),
+    bankAccount:  document.getElementById('prAcct').value.trim(),
+    airtelNumber: document.getElementById('prAirtel').value.trim(),
+    airtelName:   document.getElementById('prAirtelName').value.trim(),
+    refFormat:    document.getElementById('prRef').value.trim(),
+  };
+  setSyncState('syncing');
+  await updateDoc(doc(db,'settings','main'), {paymentRef: ref});
+  closeAdminSheet();
+  toast('✅ Payment reference updated');
 };
 
 // ══════════════════════════════════════════════════════════════

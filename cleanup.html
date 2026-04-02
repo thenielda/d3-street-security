@@ -154,13 +154,14 @@ window.resetSettings = async function() {
       currentMonth: 'Mar 2026',
       seeded: true,
       guardsMigrated: false,
-      devFundRaised: 175000,
-      devFundSpent: 87500,
+      devFundRaised: 75000,
+      devFundSpent: 0,
       devFundLedger: [
-        {type:'in',  description:'Development Reserve',     amount:38000,  date:'2025-01-31', balance:38000},
-        {type:'in',  description:'Guard tools raised',       amount:100000, date:'2025-06-01', balance:138000},
-        {type:'out', description:'Tools purchased',          amount:87500,  date:'2025-06-18', balance:50500},
-        {type:'in',  description:'Barrier contributions',    amount:37000,  date:'2025-10-01', balance:87500}
+        {type:'in',  description:'Initial development allocation',         amount:38000, date:'2025-01-31', balance:38000},
+        {type:'in',  description:'Barrier contributions (17 members)',         amount:45000, date:'2025-10-01', balance:83000},
+        {type:'out', description:'Redirected to Nov 2025 guard deficit',       amount:25000, date:'2025-11-30', balance:58000},
+        {type:'out', description:'Redirected to Dec 2025 guard deficit',       amount:20000, date:'2025-12-31', balance:38000},
+        {type:'in',  description:'Additional barrier contributions',           amount:37000, date:'2026-01-31', balance:75000}
       ],
       guardPayments: {'Mar 2026':{mid:{paid:true,amount:125000,date:'15 Mar 2026'},end:{paid:false}}}
     }, {merge: true});
