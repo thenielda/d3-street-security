@@ -339,7 +339,9 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
         <button class="btn btn-primary" onclick="openAddMember()">➕ Add New Member</button>
         <button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px"
           onclick="switchTab('members');setMemberView('dev');openDevContrib()">🏗 Record Dev Contribution</button>
-        <button class="btn btn-green" style="margin-top:8px" onclick="openWhatsApp()">📋 Generate WhatsApp Update</button>
+        <button class="btn btn-green" style="margin-top:8px" onclick="openWhatsApp()">📋 Guard Payment Update</button>
+        <button class="btn" style="background:var(--green2);color:var(--green);font-weight:700;margin-top:8px" onclick="openContribReport()">📊 Contributions Report</button>
+        <button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px" onclick="openDevReport()">🏗 Dev Fund Report</button>
         <button class="btn btn-grey" style="margin-top:8px" onclick="openGuardTab()">💸 Guard Payroll → Guards Tab</button>
     <button class="btn btn-grey" onclick="closeSheet();openCorrectCash()">&#x1F527; Correct Cash Balance</button>
       </div>
@@ -1552,7 +1554,9 @@ document.getElementById('loginPwd').addEventListener('keydown', function(e){
 
 function openAdminMenu() {
   var html = '<button class="btn btn-primary" onclick="adminAddMember()">Add New Member</button>'
-    + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">Generate WhatsApp Update</button>'
+    + '<button class="btn btn-green" style="margin-top:8px" onclick="adminWhatsApp()">📋 Guard Payment Update</button>'
+    + '<button class="btn" style="background:var(--green2);color:var(--green);font-weight:700;margin-top:8px" onclick="openContribReport()">📊 Contributions Report</button>'
+    + '<button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px" onclick="openDevReport()">🏗 Dev Fund Report</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
     + '<button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px" onclick="openEditPayRef()">✏ Edit Payment Reference</button>'
@@ -1796,6 +1800,198 @@ window.saveStdAmount = async function() {
   toast('✅ Minimum contribution updated to MWK ' + amt.toLocaleString());
 };
 
+
+
+// ══════════════════════════════════════════════════════════════
+//  DEV FUND WHATSAPP REPORT
+// ══════════════════════════════════════════════════════════════
+window.openDevReport = function() {
+  var raised  = settings.devFundRaised || 0;
+  var spent   = settings.devFundSpent  || 0;
+  var balance = raised - spent;
+  var ledger  = (settings.devFundLedger || []).slice().reverse();
+
+  // Who has contributed and how much
+  var contributors = [];
+  var notYet = [];
+  activeMembers().forEach(function(m) {
+    var total = Object.values(m.devContributions||{}).reduce(function(s,v){return s+(v||0);},0);
+    if(total > 0) contributors.push({name: m.name, amt: total});
+    else notYet.push(m.name);
+  });
+  contributors.sort(function(a,b){ return b.amt - a.amt; });
+  var totalFromMembers = contributors.reduce(function(s,c){return s+c.amt;},0);
+
+  var lines = [];
+  lines.push('🛡 *D3 STREET SECURITY*');
+  lines.push('🏗 *DEVELOPMENT FUND REPORT*');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('*FUND SUMMARY:*');
+  lines.push('💰 Total raised:  MWK ' + raised.toLocaleString());
+  lines.push('💸 Total spent:   MWK ' + spent.toLocaleString());
+  lines.push('🏦 Balance:       MWK ' + balance.toLocaleString());
+  lines.push('');
+
+  // Ledger entries
+  if(ledger.length > 0) {
+    lines.push('*TRANSACTION HISTORY:*');
+    ledger.forEach(function(t) {
+      var sign = t.type === 'in' ? '➕' : '➖';
+      lines.push(sign + ' ' + t.description + ': MWK ' + (t.amount||0).toLocaleString());
+    });
+    lines.push('');
+  }
+
+  // Member contributions
+  if(contributors.length > 0) {
+    lines.push('*MEMBER CONTRIBUTIONS (' + contributors.length + ' of ' + activeMembers().length + '):*');
+    contributors.forEach(function(c) {
+      lines.push('  • ' + c.name + ' — MWK ' + c.amt.toLocaleString());
+    });
+    lines.push('Total from members: MWK ' + totalFromMembers.toLocaleString());
+    lines.push('');
+  }
+
+  if(notYet.length > 0) {
+    lines.push('*YET TO CONTRIBUTE (' + notYet.length + '):*');
+    notYet.forEach(function(name){ lines.push('  • ' + name); });
+    lines.push('');
+  }
+
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('_Development fund is a separate pot from security contributions_');
+  lines.push('_For dev contributions, contact the Treasurer_');
+  var ref = settings.paymentRef || {};
+  if(ref.airtelNumber) lines.push('📱 Airtel: ' + ref.airtelNumber + ' (' + (ref.airtelName||'') + ')');
+  lines.push('📌 Ref: Development Fund — ' + (ref.refFormat||'Daniel Nkosi, Treasurer'));
+
+  var text = lines.join('\n');
+  window._devReportText = text;
+
+  var preview = text.replace(/\n/g,'<br>').replace(/\*/g,'').replace(/_/g,'');
+  var html = '<div style="font-size:11px;color:var(--grey3);margin-bottom:8px">'
+    + 'Development Fund WhatsApp Report — tap Copy then paste into WhatsApp</div>'
+    + '<div class="wa-preview" style="font-size:12px;line-height:1.7">' + preview + '</div>'
+    + '<button class="btn btn-green" style="margin-top:10px" onclick="copyDevReport()">📋 Copy to Clipboard</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Close</button>';
+  openSheet('Dev Fund Report', html);
+};
+
+window.copyDevReport = function() {
+  navigator.clipboard.writeText(window._devReportText||'')
+    .then(function(){ toast('✅ Copied! Paste into WhatsApp'); })
+    .catch(function(){ toast('Select and copy the text manually'); });
+};
+
+// ══════════════════════════════════════════════════════════════
+//  CONTRIBUTIONS WHATSAPP REPORT
+// ══════════════════════════════════════════════════════════════
+window.openContribReport = function() {
+  var active = activeMembers();
+  var std    = getStd(selectedMonth);
+  var target = active.length * std;
+
+  // Categorise members
+  var paid      = [];
+  var advance   = [];
+  var unpaid    = [];
+  var partial   = [];
+
+  active.forEach(function(m) {
+    var amt = (m.contributions && m.contributions[selectedMonth]) || 0;
+    if(amt === 0) {
+      unpaid.push(m.name);
+    } else if(amt < std) {
+      partial.push({name: m.name, amt: amt});
+    } else if(amt > std) {
+      advance.push({name: m.name, amt: amt});
+    } else {
+      paid.push(m.name);
+    }
+  });
+
+  var totalCollected = active.reduce(function(s,m){
+    return s + ((m.contributions && m.contributions[selectedMonth])||0);
+  }, 0);
+  var pct = target > 0 ? Math.round(totalCollected/target*100) : 0;
+
+  // Find earliest contribution month across all members
+  var allMonths = [];
+  members.forEach(function(m){
+    Object.keys(m.contributions||{}).forEach(function(mo){
+      if(allMonths.indexOf(mo)===-1) allMonths.push(mo);
+    });
+  });
+  var earliest = allMonths.sort(function(a,b){
+    return MONTHS.findIndex(function(m){return m.key===a;}) -
+           MONTHS.findIndex(function(m){return m.key===b;});
+  })[0] || 'Jan 2025';
+
+  // Build the report text
+  var lines = [];
+  lines.push('🛡 *D3 STREET SECURITY*');
+  lines.push('📊 *CONTRIBUTIONS REPORT — ' + selectedMonth.toUpperCase() + '*');
+  lines.push('(Contributions tracking since ' + earliest + ')');
+  lines.push('');
+  lines.push('📋 *MONTHLY TARGET:* MWK ' + std.toLocaleString() + ' per household');
+  lines.push('👥 *Active members:* ' + active.length);
+  lines.push('💰 *Collected:* MWK ' + totalCollected.toLocaleString() + ' / ' + fmt(target));
+  lines.push('📈 *Progress:* ' + pct + '%');
+  lines.push('');
+
+  if(paid.length + advance.length > 0) {
+    lines.push('✅ *PAID (' + (paid.length+advance.length) + '/' + active.length + '):*');
+    paid.forEach(function(name){ lines.push('  • ' + name); });
+    advance.forEach(function(m){
+      var extra = Math.round(m.amt/std);
+      lines.push('  • ' + m.name + ' (' + extra + ' months advance)');
+    });
+    lines.push('');
+  }
+
+  if(partial.length > 0) {
+    lines.push('⚠ *PARTIAL PAYMENT (' + partial.length + '):*');
+    partial.forEach(function(m){
+      lines.push('  • ' + m.name + ' — MWK ' + m.amt.toLocaleString() + ' of ' + std.toLocaleString());
+    });
+    lines.push('');
+  }
+
+  if(unpaid.length > 0) {
+    lines.push('❌ *NOT YET PAID (' + unpaid.length + '):*');
+    unpaid.forEach(function(name){ lines.push('  • ' + name); });
+    lines.push('');
+  }
+
+  // Payment deadline reminder
+  var ref = settings.paymentRef || {};
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('💳 ' + (ref.bankName||'NBM') + ' A/C: ' + (ref.bankAccount||'1104047'));
+  if(ref.airtelNumber) lines.push('📱 Airtel: ' + ref.airtelNumber + ' (' + (ref.airtelName||'') + ')');
+  lines.push('📌 Ref: ' + (ref.refFormat||'Daniel Nkosi, Treasurer'));
+  lines.push('⚠ Please pay by 15th ' + selectedMonth);
+
+  var text = lines.join('\n');
+  window._contribReportText = text;
+
+  // Show preview in sheet
+  var preview = text.replace(/\n/g, '<br>').replace(/\*/g, '');
+  var html = '<div style="font-size:11px;color:var(--grey3);margin-bottom:8px">Preview for <b>'
+    + selectedMonth + '</b> — tap Copy then paste into WhatsApp</div>'
+    + '<div class="wa-preview" style="font-size:12px;line-height:1.7">' + preview + '</div>'
+    + '<button class="btn btn-green" style="margin-top:10px" onclick="copyContribReport()">📋 Copy to Clipboard</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Close</button>';
+  openSheet('Contributions Report', html);
+};
+
+window.copyContribReport = function() {
+  navigator.clipboard.writeText(window._contribReportText||'')
+    .then(function(){ toast('✅ Copied! Paste into WhatsApp'); })
+    .catch(function(){ toast('Select and copy the text manually'); });
+};
+window.adminContribReport = function(){ closeSheet(); openContribReport(); };
+
 // ══════════════════════════════════════════════════════════════
 //  PAYMENT REFERENCE EDITOR
 // ══════════════════════════════════════════════════════════════
@@ -2025,6 +2221,7 @@ window.saveFundBalances = async function() {
 // ── Admin menu action helpers (avoids quotes-in-onclick issues) ───────────────
 window.adminAddMember   = function(){ closeSheet(); openAddMember(); };
 window.adminWhatsApp    = function(){ closeSheet(); openWhatsApp(); };
+window.adminContribReport = function(){ closeSheet(); openContribReport(); };
 window.openGuardTab     = function(){ closeSheet(); switchTab('guards'); };
 window.adminGuardMgmt   = function(){ closeSheet(); switchTab('guards'); openAddGuard(); };
 window.adminGuardPayroll= function(){ closeSheet(); switchTab('guards'); };
