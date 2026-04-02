@@ -44,6 +44,13 @@ h2{color:#1F3864}
   <button class="btn btn-green" onclick="fixGuards()">✅ Fix Guards</button>
   <div id="guardsResult"></div>
 </div>
+
+<div class="card">
+  <b>Step 5 — Fix Advance Payment Records</b><br>
+  <small>Finds any contribution > MWK 15,000 in Apr 2026 onwards and splits it correctly across months (15,000 each)</small><br><br>
+  <button class="btn btn-green" onclick="fixAdvancePayments()">✅ Fix Advance Payments</button>
+  <div id="advanceResult"></div>
+</div>
 <div id="log" class="log" style="display:none"></div>
 
 <script type="module">
@@ -210,6 +217,75 @@ window.fixGuards = async function() {
   } catch(e) {
     showErr('guardsResult', e.message);
     log('FULL ERROR: ' + e.toString());
+  }
+};
+
+// ── STEP 5: FIX ADVANCE PAYMENTS ─────────────────────────────────────────────
+window.fixAdvancePayments = async function() {
+  try {
+    log('\n=== FIXING ADVANCE PAYMENTS ===');
+    const STD = 15000;
+    const MONTH_ORDER = [];
+    // Build month order from Apr 2025 onwards
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    for(var y=2025; y<=2027; y++) {
+      for(var m=0; m<12; m++) {
+        if(y===2025 && m<3) continue; // skip Jan-Mar 2025 (std was 20,000)
+        MONTH_ORDER.push(names[m]+' '+y);
+      }
+    }
+
+    const snap = await getDocs(collection(db, 'members'));
+    let fixed = 0;
+    const batch = writeBatch(db);
+
+    snap.docs.forEach(d => {
+      const member = d.data();
+      const contribs = member.contributions || {};
+      const updates = {};
+      let changed = false;
+
+      // Check each month from Apr 2025 onwards for entries > STD
+      MONTH_ORDER.forEach(function(mo) {
+        const amt = contribs[mo] || 0;
+        if(amt > STD && amt % STD === 0) {
+          // This is an advance payment that wasn't split
+          const numMonths = amt / STD;
+          const startIdx = MONTH_ORDER.indexOf(mo);
+          log('Fixing ' + member.name + ': ' + mo + ' = MWK ' + amt.toLocaleString()
+            + ' → splitting across ' + numMonths + ' months');
+
+          // Write STD to each month starting from this one
+          for(var i=0; i<numMonths; i++) {
+            var targetMo = MONTH_ORDER[startIdx + i];
+            if(targetMo) {
+              // Only write if not already paid for that future month
+              if(i===0 || !contribs[targetMo] || contribs[targetMo]===0) {
+                updates['contributions.' + targetMo] = STD;
+              }
+            }
+          }
+          changed = true;
+          fixed++;
+        }
+      });
+
+      if(changed) batch.update(doc(db,'members',d.id), updates);
+    });
+
+    if(fixed > 0) {
+      await batch.commit();
+      log('✅ Fixed ' + fixed + ' advance payment records');
+    } else {
+      log('No advance payment records to fix');
+    }
+
+    document.getElementById('advanceResult').innerHTML =
+      '<br><div class="ok">✅ Done. Fixed ' + fixed + ' records. Reload the app to see changes.</div>';
+  } catch(e) {
+    document.getElementById('advanceResult').innerHTML =
+      '<div class="err-box">❌ ' + e.message + '</div>';
+    log('ERROR: ' + e.message);
   }
 };
 </script>

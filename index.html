@@ -1328,7 +1328,7 @@ function openPaySheet(member) {
   var html = '<div class="form-group"><label class="form-label">Starting Month</label>'
     + '<select class="form-select" id="payMonth">'+monthOpts+'</select></div>'
     + '<div class="form-group"><label class="form-label">Amount Paid (MWK)</label>'
-    + '<input class="form-input" type="number" id="payAmt" value="'+cur+'" placeholder="e.g. 15000"/>'
+    + '<input class="form-input" type="number" id="payAmt" value="'+cur+'" placeholder="e.g. 15000" oninput="updateAdvancePreview()"/>'
     + '<div class="quick-btns">'
     + '<button class="quick-btn" style="background:var(--green2);color:var(--green)"'
     + ' onclick="setPayAmt('+std+')">'+std/1000+'K</button>'
@@ -1365,15 +1365,17 @@ window.setPayAmt = function(v) {
 };
 
 window.updateAdvancePreview = function() {
+  var mo  = document.getElementById('payMonth')?.value || selectedMonth;
+  var std = getStd(mo);
   var amt = parseInt(document.getElementById('payAmt')?.value)||0;
-  var months = parseInt(document.getElementById('payMonths')?.value)||1;
-  var std = getStd(selectedMonth);
-  // Auto-detect number of months from amount
-  if(amt > 0 && amt % std === 0) {
-    var detected = amt / std;
+  var months = 1;
+  // Auto-detect: if amount is a multiple of STD, set months accordingly
+  if(std > 0 && amt >= std && amt % std === 0) {
+    months = amt / std;
     var mEl = document.getElementById('payMonths');
-    if(mEl && parseInt(mEl.value) !== detected) mEl.value = detected;
-    months = detected;
+    if(mEl) mEl.value = months;
+  } else {
+    months = parseInt(document.getElementById('payMonths')?.value)||1;
   }
   var total = std * months;
   var totalEl = document.getElementById('advanceTotal');
@@ -1392,15 +1394,19 @@ window.updateAdvancePreview = function() {
 };
 window.saveCurrentPay = function() {
   if(!window._editMember) return;
-  var amt = parseInt(document.getElementById('payAmt')?.value)||0;
-  var std = getStd(document.getElementById('payMonth')?.value || selectedMonth);
-  // Auto-detect months from amount
-  var months = (amt > 0 && std > 0 && amt % std === 0) ? (amt / std) : 1;
-  var manualMonths = parseInt(document.getElementById('payMonths')?.value)||1;
-  // Use whichever is larger (manual override wins if explicitly set > 1)
-  months = Math.max(months, manualMonths);
+  var amt    = parseInt(document.getElementById('payAmt')?.value)||0;
+  var mo     = document.getElementById('payMonth')?.value || selectedMonth;
+  var std    = getStd(mo);
+  // Derive number of months: if amt is a clean multiple of std, split it
+  var months = 1;
+  if(std > 0 && amt > std && amt % std === 0) {
+    months = amt / std;
+  }
+  // Also check the manual counter (take the larger)
+  var manual = parseInt(document.getElementById('payMonths')?.value)||1;
+  months = Math.max(months, manual);
   if(months > 1) {
-    saveAdvancePay(window._editMember.id, window._editMember.name, months);
+    saveAdvancePay(window._editMember.id, window._editMember.name, months, amt);
   } else {
     savePay(window._editMember.id, window._editMember.name);
   }
@@ -1429,24 +1435,26 @@ window.savePay = async function(id, name) {
   toast('Saved '+fmt(amt)+' for '+name+' ('+month+')');
 };
 
-window.saveAdvancePay = async function(id, name, numMonths) {
-  var startMo = document.getElementById('payMonth')?.value || selectedMonth;
-  var std = getStd(startMo);
+window.saveAdvancePay = async function(id, name, numMonths, totalAmt) {
+  var startMo  = document.getElementById('payMonth')?.value || selectedMonth;
+  var std      = getStd(startMo);
   var startIdx = MONTHS.findIndex(function(m){ return m.key===startMo; });
   if(startIdx === -1) { toast('Select a starting month'); return; }
+  if(!std) { toast('Cannot determine standard amount'); return; }
 
-  var member = members.find(function(m){ return m.id===id; });
-  var updates = {};
+  var perMonth = std; // always split at std (15,000) per month
+  var member   = members.find(function(m){ return m.id===id; });
+  var updates  = {};
   var cashDelta = 0;
   var monthsCovered = [];
 
   for(var i=0; i<numMonths; i++) {
-    var idx = startIdx + i;
-    if(idx >= MONTHS.length) break;
-    var mo = MONTHS[idx].key;
+    var mIdx = startIdx + i;
+    if(mIdx >= MONTHS.length) break;
+    var mo   = MONTHS[mIdx].key;
     var prev = (member && member.contributions && member.contributions[mo]) ? member.contributions[mo] : 0;
-    updates['contributions.' + mo] = std;
-    cashDelta += (std - prev);
+    updates['contributions.' + mo] = perMonth;  // write 15,000 per month
+    cashDelta += (perMonth - prev);
     monthsCovered.push(mo);
   }
 
@@ -1458,8 +1466,8 @@ window.saveAdvancePay = async function(id, name, numMonths) {
     });
   }
   closeAdminSheet();
-  toast(name + ': MWK ' + (std*monthsCovered.length).toLocaleString()
-    + ' split across ' + monthsCovered.length + ' months');
+  toast(name + ': split MWK ' + (perMonth*monthsCovered.length).toLocaleString()
+    + ' across ' + monthsCovered.join(', '));
 };
 
 window.markUnpaid = async function(id, name) {
