@@ -1264,30 +1264,79 @@ function openPaySheet(member) {
   var monthOpts = MONTHS.map(function(m){
     return '<option value="'+m.key+'"'+(m.key===selectedMonth?' selected':'')+'>'+m.key+'</option>';
   }).join('');
-  var html = '<div class="form-group"><label class="form-label">Month</label>'
+  var html = '<div class="form-group"><label class="form-label">Starting Month</label>'
     + '<select class="form-select" id="payMonth">'+monthOpts+'</select></div>'
     + '<div class="form-group"><label class="form-label">Amount Paid (MWK)</label>'
     + '<input class="form-input" type="number" id="payAmt" value="'+cur+'" placeholder="e.g. 15000"/>'
     + '<div class="quick-btns">'
     + '<button class="quick-btn" style="background:var(--green2);color:var(--green)"'
-    + ' onclick="setPayAmt('+std+')">'+(std/1000)+'K</button>'
+    + ' onclick="setPayAmt('+std+')">'+std/1000+'K</button>'
     + '<button class="quick-btn" style="background:var(--purple2);color:var(--purple)"'
-    + ' onclick="setPayAmt('+(std*2)+')">'+(std*2/1000)+'K (2mo)</button>'
+    + ' onclick="setPayAmt('+(std*2)+')">'+std*2/1000+'K (2mo)</button>'
     + '<button class="quick-btn" style="background:var(--gold2);color:var(--gold)"'
-    + ' onclick="setPayAmt('+(std*3)+')">'+(std*3/1000)+'K (3mo)</button>'
+    + ' onclick="setPayAmt('+(std*3)+')">'+std*3/1000+'K (3mo)</button>'
+    + '<button class="quick-btn" style="background:var(--blue4);color:var(--blue2)"'
+    + ' onclick="setPayAmt('+(std*6)+')">'+std*6/1000+'K (6mo)</button>'
     + '</div></div>'
-    + '<button class="btn btn-primary" onclick="saveCurrentPay()">Save Payment</button>'
+    + '<div class="form-group" style="background:var(--pale-blue,#DEEAF1);border-radius:10px;padding:10px;margin-top:8px">'
+    + '<label class="form-label" style="color:var(--blue)">🗓 Advance Payment — split across months?</label>'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
+    + '<input class="form-input" type="number" id="payMonths" value="1" min="1" max="12"'
+    + ' style="width:70px;text-align:center" oninput="updateAdvancePreview()"/>'
+    + '<span style="font-size:13px">months × MWK '+std.toLocaleString()+' = </span>'
+    + '<span id="advanceTotal" style="font-weight:700;color:var(--blue)">MWK '+std.toLocaleString()+'</span>'
+    + '</div>'
+    + '<div id="advanceMonthList" style="font-size:11px;color:var(--grey3);margin-top:4px"></div>'
+    + '</div>'
+    + '<button class="btn btn-primary" onclick="saveCurrentPay()">✅ Save Payment</button>'
     + '<button class="btn btn-grey" onclick="markCurrentUnpaid()">Mark Not Paid</button>'
     + '<button class="btn" style="background:var(--orange2);color:var(--orange);font-weight:700"'
     + ' onclick="markCurrentMoved()">Member Moved Away</button>'
     + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Update: '+member.name, html);
+  setTimeout(updateAdvancePreview, 100);
 }
 
 // Helper functions that read from window._editMember — no quote escaping needed
-window.setPayAmt = function(v) { document.getElementById("payAmt").value = v; };
+window.setPayAmt = function(v) {
+  document.getElementById('payAmt').value = v;
+  updateAdvancePreview();
+};
+
+window.updateAdvancePreview = function() {
+  var amt = parseInt(document.getElementById('payAmt')?.value)||0;
+  var months = parseInt(document.getElementById('payMonths')?.value)||1;
+  var std = getStd(selectedMonth);
+  // Auto-detect number of months from amount
+  if(amt > 0 && amt % std === 0) {
+    var detected = amt / std;
+    var mEl = document.getElementById('payMonths');
+    if(mEl && parseInt(mEl.value) !== detected) mEl.value = detected;
+    months = detected;
+  }
+  var total = std * months;
+  var totalEl = document.getElementById('advanceTotal');
+  if(totalEl) totalEl.textContent = 'MWK ' + total.toLocaleString();
+  // Show which months will be covered
+  var listEl = document.getElementById('advanceMonthList');
+  if(!listEl) return;
+  if(months <= 1) { listEl.textContent = ''; return; }
+  var startIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
+  if(startIdx === -1) startIdx = MONTHS.length - 1;
+  var covered = [];
+  for(var i=0; i<months && startIdx+i<MONTHS.length; i++) {
+    covered.push(MONTHS[startIdx+i].key);
+  }
+  listEl.textContent = 'Will cover: ' + covered.join(', ');
+};
 window.saveCurrentPay = function() {
-  if(window._editMember) savePay(window._editMember.id, window._editMember.name);
+  if(!window._editMember) return;
+  var months = parseInt(document.getElementById('payMonths')?.value)||1;
+  if(months > 1) {
+    saveAdvancePay(window._editMember.id, window._editMember.name, months);
+  } else {
+    savePay(window._editMember.id, window._editMember.name);
+  }
 };
 window.markCurrentUnpaid = function() {
   if(window._editMember) markUnpaid(window._editMember.id, window._editMember.name);
@@ -1311,6 +1360,38 @@ window.savePay = async function(id, name) {
   }
   closeAdminSheet();
   toast('Saved '+fmt(amt)+' for '+name+' ('+month+')');
+};
+
+window.saveAdvancePay = async function(id, name, numMonths) {
+  var std = getStd(selectedMonth);
+  var startIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
+  if(startIdx === -1) { toast('Select a starting month'); return; }
+
+  var member = members.find(function(m){ return m.id===id; });
+  var updates = {};
+  var cashDelta = 0;
+  var monthsCovered = [];
+
+  for(var i=0; i<numMonths; i++) {
+    var idx = startIdx + i;
+    if(idx >= MONTHS.length) break;
+    var mo = MONTHS[idx].key;
+    var prev = (member && member.contributions && member.contributions[mo]) ? member.contributions[mo] : 0;
+    updates['contributions.' + mo] = std;
+    cashDelta += (std - prev);
+    monthsCovered.push(mo);
+  }
+
+  setSyncState('syncing');
+  await updateDoc(doc(db,'members',id), updates);
+  if(cashDelta !== 0) {
+    await updateDoc(doc(db,'settings','main'),{
+      cashInHand: Math.max(0,(settings.cashInHand||0) + cashDelta)
+    });
+  }
+  closeAdminSheet();
+  toast(name + ': MWK ' + (std*monthsCovered.length).toLocaleString()
+    + ' split across ' + monthsCovered.length + ' months');
 };
 
 window.markUnpaid = async function(id, name) {
