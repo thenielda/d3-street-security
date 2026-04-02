@@ -34,7 +34,7 @@ h2{color:#1F3864}
 </div>
 <div class="card">
   <b>Step 3 — Fix Settings</b><br>
-  <small>cashInHand=145,000 · devFundRaised=175,000</small><br><br>
+  <small>Forces cashInHand=145,000 · devFundRaised=75,000 · devFundSpent=0</small><br><br>
   <button class="btn btn-green" onclick="resetSettings()">✅ Fix Settings</button>
   <div id="settingsResult"></div>
 </div>
@@ -154,14 +154,14 @@ window.resetSettings = async function() {
       currentMonth: 'Mar 2026',
       seeded: true,
       guardsMigrated: false,
-      devFundRaised: 75000,
-      devFundSpent: 0,
+      devFundRaised: 138000,
+      devFundSpent: 63000,
       devFundLedger: [
-        {type:'in',  description:'Initial development allocation',         amount:38000, date:'2025-01-31', balance:38000},
-        {type:'in',  description:'Barrier contributions (17 members)',         amount:45000, date:'2025-10-01', balance:83000},
-        {type:'out', description:'Redirected to Nov 2025 guard deficit',       amount:25000, date:'2025-11-30', balance:58000},
-        {type:'out', description:'Redirected to Dec 2025 guard deficit',       amount:20000, date:'2025-12-31', balance:38000},
-        {type:'in',  description:'Additional barrier contributions',           amount:37000, date:'2026-01-31', balance:75000}
+        {type:'in', description:'Initial development fund allocation', amount:38000, date:'2025-01-31', balance:38000},
+        {type:'in', description:'Barrier construction contributions (17 members)', amount:100000, date:'2025-10-01', balance:138000},
+        {type:'out', description:'Rain coats for guards (× 5)', amount:25000, date:'2025-11-01', balance:113000},
+        {type:'out', description:'Torches (3 × MWK 9,500)', amount:28500, date:'2025-11-01', balance:84500},
+        {type:'out', description:'Miscellaneous items (etc)', amount:9500, date:'2025-12-01', balance:75000}
       ],
       guardPayments: {'Mar 2026':{mid:{paid:true,amount:125000,date:'15 Mar 2026'},end:{paid:false}}}
     }, {merge: true});

@@ -307,6 +307,10 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
           <div class="t" style="color:var(--red)">GUARD PAYROLL</div>
           <div class="v" style="color:var(--red)" id="finPayroll">—</div>
         </div>
+        <div class="fin-box" style="background:var(--pale-blue,#DEEAF1)">
+          <div class="t" style="color:var(--blue)">BALANCE B/F</div>
+          <div class="v" style="color:var(--blue);font-size:16px" id="finBF">—</div>
+        </div>
         <div class="fin-box" style="background:var(--gold2);grid-column:1/-1">
           <div class="t" style="color:var(--gold)">CASH IN HAND (SECURITY)</div>
           <div class="v" style="color:var(--gold);font-size:20px" id="finCash">—</div>
@@ -627,6 +631,15 @@ async function migrateSettings() {
   const updates = {};
 
   if(existing.cashInHand        === undefined) updates.cashInHand        = 145000;
+  // Force correct cash if it's clearly wrong (negative or zero when we know it's 145,000)
+  if(existing.cashInHand !== undefined && existing.cashInHand < 0) {
+    updates.cashInHand = 145000;
+    console.log('Corrected negative cashInHand to 145,000');
+  }
+  if(!existing.monthBalances) updates.monthBalances = {
+    'Feb 2026': 155000,
+    'Mar 2026': 145000
+  };
   if(!existing.paymentRef) updates.paymentRef = {
     bankName: 'NBM', bankAccount: '1104047',
     airtelNumber: '0995434640', airtelName: 'Daniel Nkosi',
@@ -636,13 +649,14 @@ async function migrateSettings() {
   if(existing.guardPayments     === undefined) updates.guardPayments     = {
     'Mar 2026': { mid:{paid:true,amount:125000,date:'15 Mar 2026'}, end:{paid:false} }
   };
-  if(!existing.devFundRaised || existing.devFundRaised > 100000) updates.devFundRaised = 75000;
-  if(existing.devFundSpent === undefined) updates.devFundSpent = 0;
-  if(existing.devFundLedger === undefined) updates.devFundLedger = [
-    {type:'in', description:'Development Reserve',         amount:38000,  date:'2025-01-31', balance:38000},
-    {type:'in', description:'Guard tools raised',          amount:100000, date:'2025-06-01', balance:138000},
-    {type:'out',description:'Tools purchased (pangas+phone)',amount:87500, date:'2025-06-18', balance:50500},
-    {type:'in', description:'Barrier contributions',       amount:37000,  date:'2025-10-01', balance:87500}
+  if(!existing.devFundRaised || existing.devFundRaised < 130000) updates.devFundRaised = 138000;
+  if(existing.devFundSpent === undefined || existing.devFundSpent === 0 && existing.devFundRaised >= 130000) updates.devFundSpent = 63000;
+  if(existing.devFundLedger === undefined || existing.devFundLedger.length < 4) updates.devFundLedger = [
+    {type:'in', description:'Initial development fund allocation', amount:38000, date:'2025-01-31', balance:38000},
+    {type:'in', description:'Barrier construction contributions (17 members)', amount:100000, date:'2025-10-01', balance:138000},
+    {type:'out', description:'Rain coats for guards (× 5)', amount:25000, date:'2025-11-01', balance:113000},
+    {type:'out', description:'Torches (3 × MWK 9,500)', amount:28500, date:'2025-11-01', balance:84500},
+    {type:'out', description:'Miscellaneous items (etc)', amount:9500, date:'2025-12-01', balance:75000}
   ];
 
   if(Object.keys(updates).length > 0) {
@@ -790,11 +804,11 @@ async function seedIfEmpty() {
     devFundRaised: 75000,  // Verified balance: 38,000 initial + 37,000 barrier contributions
     devFundSpent: 0,       // Tools tracked separately as guard expenditure
     devFundLedger: [
-      {type:'in',  description:'Initial development allocation',             amount:38000, date:'2025-01-31', balance:38000},
-      {type:'in',  description:'Barrier construction contributions (17 members)', amount:45000, date:'2025-10-01', balance:83000},
-      {type:'out', description:'Redirected to Nov 2025 guard payment deficit',    amount:25000, date:'2025-11-30', balance:58000},
-      {type:'out', description:'Redirected to Dec 2025 guard payment deficit',    amount:20000, date:'2025-12-31', balance:38000},
-      {type:'in',  description:'Additional barrier contributions',                amount:37000, date:'2026-01-31', balance:75000}
+      {type:'in', description:'Initial development fund allocation', amount:38000, date:'2025-01-31', balance:38000},
+      {type:'in', description:'Barrier construction contributions (17 members)', amount:100000, date:'2025-10-01', balance:138000},
+      {type:'out', description:'Rain coats for guards (× 5)', amount:25000, date:'2025-11-01', balance:113000},
+      {type:'out', description:'Torches (3 × MWK 9,500)', amount:28500, date:'2025-11-01', balance:84500},
+      {type:'out', description:'Miscellaneous items (etc)', amount:9500, date:'2025-12-01', balance:75000}
     ],
     // Barrier fund merged into devFund above
     // (removed — single fund)
@@ -951,6 +965,13 @@ function renderSummary() {
   document.getElementById('finCollected').textContent    = fmt(total);
   document.getElementById('finPayroll').textContent      = fmt(totalGuardPayroll());
   document.getElementById('finCash').textContent         = fmt(computedCash);
+  // Balance brought forward = closing balance of previous month
+  var monthIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
+  var prevMonth = monthIdx > 0 ? MONTHS[monthIdx-1].key : null;
+  var bfAmt = prevMonth && settings.monthBalances && settings.monthBalances[prevMonth]
+    ? settings.monthBalances[prevMonth] : null;
+  var bfEl = document.getElementById('finBF');
+  if(bfEl) bfEl.textContent = bfAmt !== null ? fmt(bfAmt) : '(not recorded)';
   const devRaised = settings.devFundRaised||0;
   const devSpent  = settings.devFundSpent||0;
   const devBal    = devRaised - devSpent;
@@ -1657,6 +1678,36 @@ window.saveCorrectCash = async function() {
   toast('✅ Cash corrected to ' + fmt(amt));
 };
 
+
+
+window.openRecordBF = function() {
+  var monthOpts = MONTHS.map(function(m){
+    return '<option value="'+m.key+'">'+m.key+'</option>';
+  }).join('');
+  var html = '<div style="font-size:13px;margin-bottom:12px;color:var(--grey3)">'
+    + 'Record the closing cash balance at end of a month so it shows as Balance B/F on the next month.</div>'
+    + '<div class="form-group"><label class="form-label">Month</label>'
+    + '<select class="form-select" id="bfMonth">'+monthOpts+'</select></div>'
+    + '<div class="form-group"><label class="form-label">Closing Cash Balance (MWK)</label>'
+    + '<input class="form-input" type="number" id="bfAmt" value="'+(settings.cashInHand||0)+'"/></div>'
+    + '<button class="btn btn-primary" onclick="saveMonthBF()">✅ Save Closing Balance</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Record Month Closing Balance', html);
+};
+
+window.saveMonthBF = async function() {
+  var month = document.getElementById('bfMonth').value;
+  var amt   = parseInt(document.getElementById('bfAmt').value)||0;
+  var existing = settings.monthBalances || {};
+  existing[month] = amt;
+  setSyncState('syncing');
+  await updateDoc(doc(db,'settings','main'),{
+    monthBalances: existing,
+    cashInHand: amt
+  });
+  closeAdminSheet();
+  toast('✅ Closing balance for '+month+' saved: '+fmt(amt));
+};
 
 // ══════════════════════════════════════════════════════════════
 //  PAYMENT REFERENCE EDITOR
