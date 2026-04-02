@@ -648,6 +648,7 @@ async function migrateSettings() {
   const updates = {};
 
   if(existing.cashInHand        === undefined) updates.cashInHand        = 35000;
+  if(!existing.stdAmount) updates.stdAmount = 15000;
   // Always update currentMonth to today's month
   updates.currentMonth = getCurrentMonthKey();
   // Force correct cash if it's clearly wrong (negative or zero when we know it's 145,000)
@@ -804,6 +805,7 @@ async function seedIfEmpty() {
 
   batch.set(doc(db, 'settings', 'main'), {
     cashInHand: 35000,
+    stdAmount: 15000,  // Standard monthly contribution
     paymentRef: {
       bankName: 'NBM',
       bankAccount: '1104047',
@@ -878,7 +880,11 @@ function setSyncState(state) {
 // ══════════════════════════════════════════════════════════════
 function fmt(n) { return n || n===0 ? 'MWK '+Number(n).toLocaleString() : '—'; }
 function fmtK(n){ return n >= 1000 ? (n/1000).toFixed(0)+'K' : String(n||0); }
-function getStd(mo){ const m=MONTHS.find(x=>x.key===mo); return m?m.std:15000; }
+function getStd(mo) {
+  var legacyMonths = ['Jan 2025','Feb 2025','Mar 2025'];
+  if(legacyMonths.indexOf(mo) !== -1) return 20000;
+  return settings.stdAmount || 15000;
+}
 function getStatus(member, mo) {
   const v = member.contributions?.[mo];
   if(v === undefined || v === null) return 'unknown';
@@ -1550,6 +1556,7 @@ function openAdminMenu() {
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminGuardPayroll()">Guard Payroll</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="adminCorrectCash()">Correct Cash Balance</button>'
     + '<button class="btn" style="background:var(--blue4);color:var(--blue);font-weight:700;margin-top:8px" onclick="openEditPayRef()">✏ Edit Payment Reference</button>'
+    + '<button class="btn" style="background:var(--green2);color:var(--green);font-weight:700;margin-top:8px" onclick="openSetStdAmount()">💰 Set Minimum Contribution</button>'
     + '<button class="btn btn-danger" style="margin-top:14px" onclick="doLogout()">Log Out</button>'
     + '<button class="btn btn-grey" style="margin-top:8px" onclick="closeAdminSheet()">Cancel</button>';
   openSheet('Admin Menu', html);
@@ -1762,6 +1769,31 @@ window.saveMonthBF = async function() {
   });
   closeAdminSheet();
   toast('✅ Closing balance for '+month+' saved: '+fmt(amt));
+};
+
+
+window.openSetStdAmount = function() {
+  var current = settings.stdAmount || 15000;
+  var html = '<div class="alert-warn" style="margin-bottom:12px">'
+    + 'Current standard monthly contribution: <b>MWK ' + current.toLocaleString() + '</b><br>'
+    + 'Changing this affects all future payment calculations, advance split amounts, and WhatsApp messages.'
+    + '</div>'
+    + '<div class="form-group"><label class="form-label">New Minimum Contribution (MWK)</label>'
+    + '<input class="form-input" type="number" id="stdAmtInput" value="' + current + '"/></div>'
+    + '<div style="font-size:12px;color:var(--grey3);margin-bottom:12px">'
+    + 'Jan–Mar 2025 will remain at MWK 20,000 (locked historical rate)</div>'
+    + '<button class="btn btn-primary" onclick="saveStdAmount()">✅ Save</button>'
+    + '<button class="btn btn-grey" onclick="closeAdminSheet()">Cancel</button>';
+  openSheet('Set Minimum Contribution', html);
+};
+
+window.saveStdAmount = async function() {
+  var amt = parseInt(document.getElementById('stdAmtInput').value)||15000;
+  if(amt < 1000) { toast('Amount too low — minimum MWK 1,000'); return; }
+  setSyncState('syncing');
+  await updateDoc(doc(db,'settings','main'), {stdAmount: amt});
+  closeAdminSheet();
+  toast('✅ Minimum contribution updated to MWK ' + amt.toLocaleString());
 };
 
 // ══════════════════════════════════════════════════════════════
