@@ -308,7 +308,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
           <div class="v" style="color:var(--red)" id="finPayroll">—</div>
         </div>
         <div class="fin-box" style="background:var(--blue4)">
-          <div class="t" style="color:var(--blue)">BALANCE B/F</div>
+          <div class="t" style="color:var(--blue)">BALANCE B/F (SECURITY)</div>
           <div class="v" style="color:var(--blue);font-size:16px" id="finBF">—</div>
         </div>
         <div class="fin-box" style="background:var(--purple2)">
@@ -316,7 +316,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:var(--text
           <div class="v" style="color:var(--purple);font-size:16px" id="finAdvance">—</div>
         </div>
         <div class="fin-box" style="background:var(--gold2)">
-          <div class="t" style="color:var(--gold)">SECURITY CASH</div>
+          <div class="t" style="color:var(--gold)">CASH IN HAND</div>
           <div class="v" style="color:var(--gold);font-size:20px" id="finCash">—</div>
         </div>
         <div class="fin-box" style="background:var(--blue4)">
@@ -604,7 +604,7 @@ const SEED_MEMBERS = [
   {name:'Lapken',       status:'active', contributions:{'Jan 2025':20000,'May 2025':15000,'Jun 2025':15000,'Sep 2025':15000,'Nov 2025':15000,'Jan 2026':15000,'Feb 2026':15000,'Mar 2026':15000, devContributions:{'Development Fund':5000}}},
   {name:'Kapira',       status:'active', contributions:{'Jan 2025':22000,'May 2025':15000,'Jun 2025':15000,'Oct 2025':15000,'Jan 2026':15000,'Mar 2026':15000, devContributions:{'Development Fund':5000}}},
   {name:'Kamnkhwani',   status:'active', contributions:{'Feb 2025':20000,'Apr 2025':15000,'May 2025':15000,'Jun 2025':15000,'Sep 2025':15000,'Oct 2025':15000,'Jan 2026':15000,'Feb 2026':15000,'Mar 2026':15000, devContributions:{'Development Fund':5000}}},
-  {name:'Gogo Weluzani',status:'active', contributions:{'Feb 2025':20000,'Mar 2025':20000,'Apr 2025':15000,'May 2025':15000,'Jun 2025':15000,'Jul 2025':15000,'Aug 2025':15000,'Sep 2025':15000,'Oct 2025':15000,'Nov 2025':15000,'Dec 2025':15000,'Jan 2026':15000,'Feb 2026':15000,'Mar 2026':60000, devContributions:{'Development Fund':5000}}},
+  {name:'Gogo Weluzani',status:'active', contributions:{'Feb 2025':20000,'Mar 2025':20000,'Apr 2025':15000,'May 2025':15000,'Jun 2025':15000,'Jul 2025':15000,'Aug 2025':15000,'Sep 2025':15000,'Oct 2025':15000,'Nov 2025':15000,'Dec 2025':15000,'Jan 2026':15000,'Feb 2026':15000,'Mar 2026':15000,'Apr 2026':15000,'May 2026':15000,'Jun 2026':15000, devContributions:{'Development Fund':5000}}},
   {name:'Pascal Banda', status:'active', contributions:{'Feb 2025':20000,'Apr 2025':15000,'May 2025':15000,'Sep 2025':15000,'Jan 2026':15000,'Feb 2026':15000, devContributions:{'Development Fund':5000}}},
   {name:'Masinga',      status:'active', contributions:{'Mar 2025':20000,'Apr 2025':15000,'May 2025':15000,'Jun 2025':15000, devContributions:{'Development Fund':20000}}},
   {name:'Chakhumata',   status:'active', contributions:{'Apr 2025':15000,'May 2025':15000,'Jun 2025':15000,'Sep 2025':20000,'Nov 2025':15000,'Jan 2026':15000,'Mar 2026':15000, devContributions:{'Development Fund':25000}}},
@@ -664,9 +664,7 @@ async function migrateSettings() {
     updates.cashInHand = 35000;
     console.log('Corrected negative cashInHand to 145,000');
   }
-  if(!existing.monthBalances) updates.monthBalances = {
-    'Mar 2026': 35000
-  };
+  if(!existing.monthBalances) updates.monthBalances = {'Mar 2026': 35000};
   if(!existing.paymentRef) updates.paymentRef = {
     bankName: 'NBM', bankAccount: '1104047',
     airtelNumber: '0995434640', airtelName: 'Daniel Nkosi',
@@ -1035,13 +1033,26 @@ function renderSummary() {
   var devEl = document.getElementById('finDev');
   if(devEl) devEl.textContent = fmt(devBal2);
 
-  // Balance brought forward
+  // Balance brought forward — security cash closing balance from previous month
+  // Only shown from Apr 2026 onwards (Mar 2026 is the starting point)
   var monthIdx = MONTHS.findIndex(function(m){ return m.key===selectedMonth; });
   var prevMonth = monthIdx > 0 ? MONTHS[monthIdx-1].key : null;
-  var bfAmt = prevMonth && settings.monthBalances && settings.monthBalances[prevMonth]
+  var bfAmt = prevMonth && settings.monthBalances && settings.monthBalances[prevMonth] !== undefined
     ? settings.monthBalances[prevMonth] : null;
   var bfEl = document.getElementById('finBF');
-  if(bfEl) bfEl.textContent = bfAmt !== null ? fmt(bfAmt) : 'Not recorded';
+  // Only show B/F for months after March 2026
+  var mar2026Idx = MONTHS.findIndex(function(m){ return m.key==='Mar 2026'; });
+  if(bfEl) {
+    if(monthIdx > mar2026Idx && bfAmt !== null) {
+      bfEl.textContent = fmt(bfAmt);
+      bfEl.closest('.fin-box').style.display = '';
+    } else if(monthIdx <= mar2026Idx) {
+      bfEl.closest('.fin-box').style.display = 'none'; // hide for Mar and earlier
+    } else {
+      bfEl.textContent = 'Not recorded';
+      bfEl.closest('.fin-box').style.display = '';
+    }
+  }
 // Dev fund shown in financial grid cards above
   document.getElementById('adminSummaryActions').style.display = isAdmin?'block':'none';
 }
