@@ -170,7 +170,9 @@ window.resetSettings = async function() {
         {type:'out', description:'Torches (3 × MWK 9,500)', amount:28500, date:'2025-11-01', balance:84500},
         {type:'out', description:'Miscellaneous items (etc)', amount:9500, date:'2025-12-01', balance:75000}
       ],
-      guardPayments: {'Mar 2026':{mid:{paid:true,amount:125000,date:'15 Mar 2026'},end:{paid:false}}}
+      guardPayments: {'Mar 2026':{mid:{paid:true,amount:125000,date:'15 Mar 2026'},end:{paid:true,amount:125000,date:'30 Mar 2026'}}},
+      monthBalances: {'Mar 2026': 35000},
+      stdAmount: 15000
     }, {merge: true});
     log('✅ Settings fixed');
     document.getElementById('settingsResult').innerHTML =
@@ -224,65 +226,79 @@ window.fixGuards = async function() {
 window.fixAdvancePayments = async function() {
   try {
     log('\n=== FIXING ADVANCE PAYMENTS ===');
-    log('Note: Also manually check Gogo Weluzani Mar 2026 = 15,000 (not 60,000)');
     const STD = 15000;
-    const MONTH_ORDER = [];
-    // Build month order from Apr 2025 onwards
-    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    for(var y=2025; y<=2027; y++) {
-      for(var m=0; m<12; m++) {
-        if(y===2025 && m<3) continue; // skip Jan-Mar 2025 (std was 20,000)
-        MONTH_ORDER.push(names[m]+' '+y);
-      }
-    }
+
+    // Known advance payment members to fix explicitly
+    const ADVANCE_FIXES = {
+      'Gogo Weluzani': {'Mar 2026':15000,'Apr 2026':15000,'May 2026':15000,'Jun 2026':15000},
+      'Chikuni':       {'Mar 2026':15000,'Apr 2026':15000,'May 2026':15000,'Jun 2026':15000},
+    };
 
     const snap = await getDocs(collection(db, 'members'));
     let fixed = 0;
-    const batch = writeBatch(db);
 
-    snap.docs.forEach(d => {
+    for(const d of snap.docs) {
       const member = d.data();
+      const name = member.name;
       const contribs = member.contributions || {};
-      const updates = {};
+      let updates = {};
       let changed = false;
 
-      // Check each month from Apr 2025 onwards for entries > STD
-      MONTH_ORDER.forEach(function(mo) {
-        const amt = contribs[mo] || 0;
-        if(amt > STD && amt % STD === 0) {
-          // This is an advance payment that wasn't split
-          const numMonths = amt / STD;
-          const startIdx = MONTH_ORDER.indexOf(mo);
-          log('Fixing ' + member.name + ': ' + mo + ' = MWK ' + amt.toLocaleString()
-            + ' → splitting across ' + numMonths + ' months');
+      // Fix explicitly known advance members
+      if(ADVANCE_FIXES[name]) {
+        const expected = ADVANCE_FIXES[name];
+        for(const [mo, amt] of Object.entries(expected)) {
+          if((contribs[mo]||0) !== amt) {
+            updates['contributions.' + mo] = amt;
+            log(name + ': set ' + mo + ' = MWK ' + amt.toLocaleString());
+            changed = true;
+          } else {
+            log(name + ': ' + mo + ' already correct (' + amt.toLocaleString() + ')');
+          }
+        }
+        // Clear any lump sum in Mar 2026 if it was 60,000
+        if((contribs['Mar 2026']||0) === 60000) {
+          updates['contributions.Mar 2026'] = 15000;
+          log(name + ': corrected Mar 2026 from 60,000 to 15,000');
+          changed = true;
+        }
+      }
 
-          // Write STD to each month starting from this one
-          for(var i=0; i<numMonths; i++) {
-            var targetMo = MONTH_ORDER[startIdx + i];
-            if(targetMo) {
-              // Only write if not already paid for that future month
-              if(i===0 || !contribs[targetMo] || contribs[targetMo]===0) {
-                updates['contributions.' + targetMo] = STD;
-              }
+      // General scan: fix any other member with contribution > STD that is a clean multiple
+      for(const [mo, amt] of Object.entries(contribs)) {
+        // Skip legacy months (Jan-Mar 2025 had 20,000 std)
+        if(['Jan 2025','Feb 2025','Mar 2025'].includes(mo)) continue;
+        // Skip months already handled above
+        if(ADVANCE_FIXES[name] && ADVANCE_FIXES[name][mo] !== undefined) continue;
+        if(amt > STD && amt % STD === 0) {
+          const numMonths = amt / STD;
+          // Find this month in order
+          const names2 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+          const allMonths = [];
+          for(let y=2025;y<=2027;y++) for(let m=0;m<12;m++) allMonths.push(names2[m]+' '+y);
+          const startIdx = allMonths.indexOf(mo);
+          if(startIdx === -1) continue;
+          log(name + ': splitting ' + mo + ' MWK ' + amt.toLocaleString() + ' across ' + numMonths + ' months');
+          for(let i=0; i<numMonths; i++) {
+            const targetMo = allMonths[startIdx+i];
+            if(targetMo && (i===0 || !contribs[targetMo] || contribs[targetMo]===0)) {
+              updates['contributions.'+targetMo] = STD;
+              changed = true;
             }
           }
-          changed = true;
-          fixed++;
         }
-      });
+      }
 
-      if(changed) batch.update(doc(db,'members',d.id), updates);
-    });
-
-    if(fixed > 0) {
-      await batch.commit();
-      log('✅ Fixed ' + fixed + ' advance payment records');
-    } else {
-      log('No advance payment records to fix');
+      if(changed) {
+        await updateDoc(doc(db,'members',d.id), updates);
+        fixed++;
+        log('  → Saved updates for ' + name);
+      }
     }
 
+    log('\n✅ Fixed ' + fixed + ' member records');
     document.getElementById('advanceResult').innerHTML =
-      '<br><div class="ok">✅ Done. Fixed ' + fixed + ' records. Reload the app to see changes.</div>';
+      '<br><div class="ok">✅ Done. Fixed ' + fixed + ' records. Reload the app.</div>';
   } catch(e) {
     document.getElementById('advanceResult').innerHTML =
       '<div class="err-box">❌ ' + e.message + '</div>';
